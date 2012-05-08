@@ -112,11 +112,23 @@ def nspath(path, ns=OWS_NAMESPACE):
 
 def nspath_eval(xpath, namespaces):
     ''' Return an etree friendly xpath '''
+
+    
+
     out = []
     for chunks in xpath.split('/'):
         namespace, element = chunks.split(':')
         out.append('{%s}%s' % (namespaces[namespace], element))
     return '/'.join(out)
+
+def testXMLAttribute(element, attribute):
+    ele = testXMLValue(element)
+    if ele is not None:
+        attrib = ele.get(attribute)
+        if attrib is not None:
+            return attrib
+
+    return None
 
 def testXMLValue(val, attrib=False):
     """
