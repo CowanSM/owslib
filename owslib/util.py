@@ -9,6 +9,8 @@
 
 import sys
 from owslib.etree import etree
+import pytz
+import datetime
 import urlparse, urllib2
 from urllib2 import urlopen, HTTPError, Request
 from urllib2 import HTTPPasswordMgrWithDefaultRealm
@@ -112,9 +114,6 @@ def nspath(path, ns=OWS_NAMESPACE):
 
 def nspath_eval(xpath, namespaces):
     ''' Return an etree friendly xpath '''
-
-    
-
     out = []
     for chunks in xpath.split('/'):
         namespace, element = chunks.split(':')
@@ -122,7 +121,7 @@ def nspath_eval(xpath, namespaces):
     return '/'.join(out)
 
 def testXMLAttribute(element, attribute):
-    ele = testXMLValue(element)
+    ele = testXMLValue(element, attrib=True)
     if ele is not None:
         attrib = ele.get(attribute)
         if attrib is not None:
@@ -236,3 +235,17 @@ def xmltag_split(tag):
         return tag.split('}')[1]
     except:
         return tag
+
+
+def extract_time(time_string):
+    ''' return a datetime object based on a gml text string '''
+    dt = None
+    try:            
+        dt = dateutil.parser.parse(time_string)
+    except ValueError:
+        if time_string == 'now':
+            dt = datetime.utcnow()
+            dt.replace(tzinto=pytz.utc)
+        else:
+            dt = None
+    return dt

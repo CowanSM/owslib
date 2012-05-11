@@ -1,7 +1,9 @@
 import cgi
 import etree
-from ownlib import ows
-from owslib.util import openURL, testXMLValue, nspath_eval
+import dateutil
+from owslib import ows
+from owslib.crs import Crs
+from owslib.util import openURL, testXMLValue, nspath_eval, extract_time
 
 namespaces = {
     None    : 'http://www.opengis.net/sos/1.0',
@@ -63,25 +65,69 @@ class SosService(object):
         # ows:OperationsMetadata metadata
         self.operations = []
         for op in self._capabilities.find(nsp('ows:OperationsMetadata/ows:Operation')):
-            self.operations.append(ows.OperationMetadata(op, namespaces['ows']))
+            self.operations.append(ows.OperationsMetadata(op, namespaces['ows']))
           
+        # TODO: Implement sos:Filter_Capabilities
+        # SOS spec 8.2.3.1 - FilterCapabilities Section
+
         # sos:Contents metadata
         self.offerings = []
         for offering in self._capabilities.find(nsp('sos:Contents/sos:ObservationOfferingList/sos:ObservationOffering')):
-            offering_id = testXMLAttribute(offering,nsp('gml:id'))
-            name = testXMLValue(offering.find(nsp('gml:name')))
-            description = testXMLValue(offering.find(nsp('gml:description')))
-            srsName = testXMLValue(offering.find(nsp('gml:srsName')))
-            # (left, bottom, right, top) in srs units
-            bbox = testXMLValue(offering.find(nsp('gml:srsName')))
-            begin_time = 
-            end_time
-            offerings.append()
+            offerings.append(SosObservationOffering(offering))
 
-class SosContents(object):
+class SosObservationOffering(object):
     def __init__(self, element):
-        
 
+        self._root = element
+        self.id = testXMLAttribute(self._root,nsp('gml:id'))
+        self.description = testXMLValue(self._root.find(nsp('gml:description')))
+        self.name = testXMLValue(self._root.find(nsp('gml:name')))
+        self.srs = Crs(testXMLValue(self._root.find(nsp('gml:srsName'))))
+
+        # LOOK: Check on GML boundedBy to make sure we handle all of the cases
+        # gml:boundedBy
+        try:
+            envelope = self._root.find(nsp('gml:Envelope'))
+            lower_left_corner = testXMLValue(envelope.find(nsp('gml:lowerCorner'))).split(" ")
+            upper_right_corner = testXMLValue(envelope.find(nsp('gml:upperCorner'))).split(" ")
+            # (left, bottom, right, top) in self.bbox_srs units
+            self.bbox = (lower_left_corner[1], lower_left_corner[0], upper_right_corner[1], upper_right_corner[0])
+            self.bbox_srs = Crs(testXMLAttribute(envelope,'srsName'))
+        except Exception:
+            self.bbox = None
+            self.bbox_srs = None
+
+        # LOOK: Support all gml:TimeGeometricPrimitivePropertyType
+        # Right now we are just supporting gml:TimePeriod
+        # sos:Time
+        begin_position = testXMLValue(self._root.find(nsp('sos:time/gml:TimePeriod/gml:beginPosition')))
+        self.begin_position = extract_time(begin_position)
+        end_position = testXMLValue(self._root.find(nsp('sos:time/gml:TimePeriod/gml:endPosition')))
+        self.end_position = extract_time(end_position)
+        self.result_model = textXMLValue(self._root.find(nsp('sos:resultModel')))
+
+        self.procedures = []
+        for proc in self._root.findall(nsp('sos:procedure')):
+            self.procedures.append(testXMLAttribute(proc,nsp('xlink:href')))
+
+        # LOOK: Support swe:Phenomenon here
+        # this includes compound properties
+        self.observed_properties = []
+        for op in self._root.findall(nsp('sos:observedProperty')):
+            self.observed_properties.append(testXMLAttribute(op,nsp('xlink:href')))
+
+        self.features_of_interest = []
+        for fot in self._root.findall(nsp('sos:featureOfInterest')):
+            self.features_of_interest.append(testXMLAttribute(fot,nsp('xlink:href')))
+
+        self.response_formats = []
+        for rf in self._root.findall(nsp('sos:responseFormat')):
+            self.response_formats.append(testXMLValue(rf))
+
+        self.response_modes = []
+        for rm in self._root.findall(nsp('sos:responseMode')):
+            self.response_modes.append(testXMLValue(rm))
+        
 class SosCapabilitiesReader(object):
     def __init__(self, version="1.0.0", url=None, username=None, password=None):
         self.version = version

@@ -17,7 +17,7 @@ Currently supports version 1.1.0 (06-121r3).
 
 from owslib.etree import etree
 from owslib import crs, util
-from owslib.util import textXMLValue, nspath_eval, xmltag_split
+from owslib.util import testXMLValue, testXMLAttribute, nspath_eval, xmltag_split
 
 OWS_NAMESPACE_1_0_0 = 'http://www.opengis.net/ows'
 OWS_NAMESPACE_1_1_0 = 'http://www.opengis.net/ows/1.1'
@@ -96,7 +96,7 @@ class OperationsMetadata(object):
         self.formatOptions = ['text/xml'] # LOOK: What is this?
         
         methods = []
-        for verb in self._root.findall(nspath_eval('ows:DCP/ows:HTTP/*', namespaces)):
+        for verb in self._root.findall(nspath_eval('ows:DCP/ows:HTTP/ows:*', namespaces)):
             url = testXMLAttribute(verb, nspath_eval('xlink:href', namespaces))
             methods.append((xmltag_split(verb.tag), {'url': url}))
         self.methods = dict(methods)
@@ -172,7 +172,7 @@ class ExceptionReport(Exception):
         self.code = self.exceptions[0]['exceptionCode']
         self.locator = self.exceptions[0]['locator']
         self.msg = self.exceptions[0]['ExceptionText']
-        self.xml = etree.tostring(elem)
+        self.xml = etree.tostring(elem.getroot())
 
     def __str__(self):
         return repr(self.msg)
