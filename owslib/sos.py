@@ -14,9 +14,11 @@ namespaces = {
     'ows'   : 'http://www.opengis.net/ows',
 }
 
-class SosService(object):
+class SensorObservationService(object):
     """
         Abstraction for OGC Sensor Observation Service (SOS).
+
+        Implements ISensorObservationService.
     """
 
     def __getitem__(self,id):
@@ -26,8 +28,7 @@ class SosService(object):
         else:
             raise KeyError, "No Observational Offering with id: %s" % id
 
-    def __init__(self, url, version='1.0.0', xml=None, 
-                username=None, password=None):
+    def __init__(self, url, version='1.0.0', xml=None, username=None, password=None):
         """Initialize."""
         self.url = url
         self.username = username
@@ -48,7 +49,7 @@ class SosService(object):
             self._capabilities = reader.read(self.url)
 
         # Avoid building metadata if the response is an Exception
-        se = self._capabilities.find('{self.OWS_NAMESPACE}ExceptionReport') 
+        se = self._capabilities.find(nsp('ows:ExceptionReport'))
         if se is not None: 
             raise ows.ExceptionReport(se) 
 
@@ -72,7 +73,7 @@ class SosService(object):
             
         # ows:OperationsMetadata metadata
         self.operations = []
-        for op in self._capabilities.find(nsp('ows:OperationsMetadata/ows:Operation')):
+        for op in self._capabilities.findall(nsp('ows:OperationsMetadata/ows:Operation')):
             self.operations.append(ows.OperationsMetadata(op, namespaces['ows']))
           
         # sos:FilterCapabilities
@@ -84,6 +85,7 @@ class SosService(object):
         for offering in self._capabilities.findall(nsp('sos:Contents/sos:ObservationOfferingList/sos:ObservationOffering')):
             off = SosObservationOffering(offering)
             self.contents[off.id] = off
+
     def get_operation(self, name): 
         """
             Return a Operation item by name
@@ -122,7 +124,7 @@ class SosObservationOffering(object):
         self.begin_position = extract_time(begin_position)
         end_position = testXMLValue(self._root.find(nsp('sos:time/gml:TimePeriod/gml:endPosition')))
         self.end_position = extract_time(end_position)
-        self.result_model = textXMLValue(self._root.find(nsp('sos:resultModel')))
+        self.result_model = testXMLValue(self._root.find(nsp('sos:resultModel')))
 
         self.procedures = []
         for proc in self._root.findall(nsp('sos:procedure')):
@@ -186,7 +188,7 @@ class SosCapabilitiesReader(object):
         """
         getcaprequest = self.capabilities_url(service_url)
         spliturl=getcaprequest.split('?')
-        u = openURL(spliturl[0], spliturl[1], method='Get', username = self.username, password = self.password)
+        u = openURL(spliturl[0], spliturl[1], method='Get', username=self.username, password=self.password)
         return etree.fromstring(u.read())
 
     def read_string(self, st):
