@@ -3,6 +3,7 @@ import etree
 import dateutil
 from owslib import ows
 from owslib.crs import Crs
+from owslib import filter
 from owslib.util import openURL, testXMLValue, nspath_eval, extract_time
 
 namespaces = {
@@ -74,8 +75,9 @@ class SosService(object):
         for op in self._capabilities.find(nsp('ows:OperationsMetadata/ows:Operation')):
             self.operations.append(ows.OperationsMetadata(op, namespaces['ows']))
           
-        # TODO: Implement sos:Filter_Capabilities
-        # SOS spec 8.2.3.1 - FilterCapabilities Section
+        # sos:FilterCapabilities
+        filters = self._capabilities.find(nsp('sos:Filter_Capabilities'))
+        self.filters=filter.Filter_Capabilities(filters)
 
         # sos:Contents metadata
         self.contents = {}
