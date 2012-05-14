@@ -18,6 +18,13 @@ class SosService(object):
         Abstraction for OGC Sensor Observation Service (SOS).
     """
 
+    def __getitem__(self,id):
+        ''' check contents dictionary to allow dict like access to service observational offerings'''
+        if name in self.__getattribute__('contents').keys():
+            return self.__getattribute__('contents')[id]
+        else:
+            raise KeyError, "No Observational Offering with id: %s" % id
+
     def __init__(self, url, version='1.0.0', xml=None, 
                 username=None, password=None):
         """Initialize."""
@@ -71,9 +78,18 @@ class SosService(object):
         # SOS spec 8.2.3.1 - FilterCapabilities Section
 
         # sos:Contents metadata
-        self.offerings = []
-        for offering in self._capabilities.find(nsp('sos:Contents/sos:ObservationOfferingList/sos:ObservationOffering')):
-            offerings.append(SosObservationOffering(offering))
+        self.contents = {}
+        for offering in self._capabilities.findall(nsp('sos:Contents/sos:ObservationOfferingList/sos:ObservationOffering')):
+            off = SosObservationOffering(offering)
+            self.contents[off.id] = off
+    def get_operation(self, name): 
+        """
+            Return a Operation item by name
+        """
+        for item in self.operations:
+            if item.name == name:
+                return item
+        raise KeyError, "No Operation named %s" % name
 
 class SosObservationOffering(object):
     def __init__(self, element):
@@ -127,6 +143,9 @@ class SosObservationOffering(object):
         self.response_modes = []
         for rm in self._root.findall(nsp('sos:responseMode')):
             self.response_modes.append(testXMLValue(rm))
+
+    def __str__(self):
+        return 'Offering id: %s, name: %s' % (self.id, self.name)
         
 class SosCapabilitiesReader(object):
     def __init__(self, version="1.0.0", url=None, username=None, password=None):
