@@ -35,7 +35,7 @@ class SosService(object):
                 version=self.version, url=self.url, username=self.username, password=self.password
                 )
         if xml:  # read from stored xml
-            self._capabilities = reader.readString(xml)
+            self._capabilities = reader.read_string(xml)
         else:  # read from server
             self._capabilities = reader.read(self.url)
 
@@ -168,7 +168,7 @@ class SosCapabilitiesReader(object):
         u = openURL(spliturl[0], spliturl[1], method='Get', username = self.username, password = self.password)
         return etree.fromstring(u.read())
 
-    def readString(self, st):
+    def read_string(self, st):
         """
             Parse a SOS capabilities document, returning an elementtree instance
 
