@@ -16,7 +16,7 @@
     >>> wms = WebMapService('url', version='1.1.1', xml=wmsxml)
     >>> wfs = WebFeatureService('url', version='1.0', xml=wfsxml)
     >>> wcs=WebCoverageService('http://motherlode.ucar.edu:8080/thredds/wcs/fmrc/NCEP/NAM/CONUS_40km/conduit/NCEP-NAM-CONUS_40km-conduit_best.ncd', version='1.0.0')
-    >>> csw= CatalogueServiceWeb('http://devgeo.cciw.ca/geonetwork/srv/en/csw')
+    >>> csw= CatalogueServiceWeb('http://www.ngdc.noaa.gov/geoportal/csw')
 
 #Check each service instance conforms to OWSLib interface
     >>> csw.alias, wms.alias, wcs.alias, wfs.alias='CSW', 'WMS', 'WCS', 'WFS' 
@@ -29,12 +29,19 @@
     <class 'owslib.feature.wfs100.WebFeatureService_1_0_0'>
 
 #URL attribute
+#no longer cciw.ca, switching to different hosting service
     >>> for service in services:
     ...     service.url
-    'http://devgeo.cciw.ca/geonetwork/srv/en/csw'
+	'http://www.ngdc.noaa.gov/geoportal/csw'
     'url'
     'http://motherlode.ucar.edu:8080/thredds/wcs/fmrc/NCEP/NAM/CONUS_40km/conduit/NCEP-NAM-CONUS_40km-conduit_best.ncd'
     'url'
+	
+	#old expected response
+    #'http://devgeo.cciw.ca/geonetwork/srv/en/csw'
+    #'url'
+    #'http://motherlode.ucar.edu:8080/thredds/wcs/fmrc/NCEP/NAM/CONUS_40km/conduit/NCEP-NAM-CONUS_40km-conduit_best.ncd'
+    #'url'
 
 #version attribute
     >>> for service in services:
@@ -67,6 +74,7 @@
     [['type', True], ['version', True], ['title', True], ['abstract', True], ['keywords', True], ['accessconstraints', True], ['fees', True]]
 
 #Check all ServiceProvider attributes
+#Response changed, probably due to change in hosting services
     >>> for service in services:
     ...     service.identification.type
     ...     [[attribute, hasattr(service.provider, attribute)] for attribute in ['name','url','contact']] 
@@ -77,15 +85,15 @@
     'OGC:WCS'
     [['name', True], ['url', True], ['contact', True]]
     'MapServer WFS'
-    [['name', True], ['url', True], ['contact', True]]
+    [['name', False], ['url', True], ['contact', False]]
 
 #Check all operations implement IOperationMetadata
+#Response changed, probably due to change in hosting services
     >>> for service in services:
     ...     service.identification.type
     ...     for op in service.operations:
     ...         [[attribute, hasattr(op, attribute)] for attribute in ['name','formatOptions','methods']] 
     'CSW'
-    [['name', True], ['formatOptions', True], ['methods', True]]
     [['name', True], ['formatOptions', True], ['methods', True]]
     [['name', True], ['formatOptions', True], ['methods', True]]
     [['name', True], ['formatOptions', True], ['methods', True]]

@@ -2,7 +2,7 @@
 Imports and initialize
 
     >>> from owslib.wfs import WebFeatureService
-    >>> wfs = WebFeatureService('http://ndg3beta.badc.rl.ac.uk/cows/demo_hadcm3/wfs?', version='2.0.0')
+    >>> wfs = WebFeatureService('http://giswebservices.massgis.state.ma.us/geoserver/wfs', version='2.0.0')
 
 Test the capabilities info
 

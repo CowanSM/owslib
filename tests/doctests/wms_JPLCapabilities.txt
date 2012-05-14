@@ -109,8 +109,8 @@ Test exceptions
 
 Lastly, test the getcapabilities and getmap methods
 
-    >>> wms = WebMapService('http://wms.jpl.nasa.gov/wms.cgi', version='1.1.1')
-    >>> img = wms.getmap(   layers=['global_mosaic'], styles=['visual_bright'],                  srs='EPSG:4326', bbox=(-112, 36, -106, 41), size=(300, 250), format='image/jpeg',         transparent=True)
+    >>> wms = WebMapService('http://giswebservices.massgis.state.ma.us/geoserver/wms.cgi', version='1.1.1')
+    >>> img = wms.getmap(layers=['global_mosaic'], styles=['visual_bright'], srs='EPSG:4326', bbox=(-112, 36, -106, 41), size=(300, 250), format='image/jpeg', transparent=True)
     >>> out = open(os.path.join(os.path.dirname(__file__), 'jpl_mosaic_visb.jpg'), 'wb')
     >>> out.write(img.read())
     >>> out.close()

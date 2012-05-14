@@ -46,10 +46,10 @@ Test single item accessor
     'Points of Interest'
     
     >>> wms['opengeo:poi'].boundingBox
-    (-74.012, 40.707999999999998, -74.001999999999995, 40.719999999999999, 'EPSG:4326')
+    (-74.012, 40.708, -74.002, 40.72, 'EPSG:4326')
     
     >>> wms['opengeo:poi'].boundingBoxWGS84
-    (-74.012, 40.707999999999998, -74.001999999999995, 40.719999999999999)
+    (-74.012, 40.708, -74.002, 40.72)
     
     >>> wms['opengeo:poi'].crsOptions
     ['EPSG:4326']
