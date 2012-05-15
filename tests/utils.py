@@ -1,8 +1,7 @@
 import os
 
-def open_file(filepath, mode='r'):
-    """Helper function to open files from within the tests directory"""
-    return open(os.path.join(test_directory(), filepath), mode)
+def resource_file(filepath):
+	return os.path.join(test_directory(), 'resources', filepath)
 
 def test_directory():
     """Helper function to return path to the tests directory"""
