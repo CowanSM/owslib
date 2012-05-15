@@ -1,21 +1,15 @@
 Testing OWSLib
 ==============
 
-The OWSLib module is tested with the help of setuptools
+The OWSLib module is tested with the help of distribute and py.test
 
-  http://peak.telecommunity.com/DevCenter/setuptools
+  http://pypi.python.org/pypi/distribute
+  http://pypi.python.org/pypi/pytest
 
-Once you've used the ez_setup.py bootstrap module, use the tsetup.py script to
-make a development build of cartography.data. I use /home/sean/egg-dev
-as a staging area instead of the default (site-packages)
+To run all tests:
 
-  $ python tsetup.py develop --install-dir=/home/sean/egg-dev
+  $ python setup.py test
 
-Next, copy runalltests.dist to runalltests and edit the PYTHONPATH to point to
-your own staging area. Run it like
+To run a single test:
 
-  $ ./runalltests
-
-Setuptools makes it a bit easier to guarantee we're testing the checked out
-code, and not another installation of PCL.
-
+	$ python -m pytest path_to_test
