@@ -73,7 +73,8 @@ Print the ids of all layers (actually just the first 3):
 	>>> output=wcs.getCoverage(identifier=covID,time=timeRange,bbox=bb, format=formatType)
 
 #Then write this to a netcdf file.
-	>>> filename = 'threddstest.nc'
-	>>> f=open(filename, 'wb')
+	>>> from tests.utils import scratch_file
+	>>> filename = scratch_file('threddstest.nc')
+	>>> f = open(filename, 'wb')
 	>>> f.write(output.read())
 	>>> f.close() 	
