@@ -244,8 +244,8 @@ def extract_time(time_string):
     ''' return a datetime object based on a gml text string '''
     dt = None
     try:            
-        dt = dateutil.parser.parse(time_string)
-    except ValueError:
+        dt = parser.parse(time_string)
+    except Exception:
         if time_string == 'now':
             dt = datetime.utcnow()
             dt.replace(tzinto=pytz.utc)
