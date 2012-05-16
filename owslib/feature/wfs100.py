@@ -20,31 +20,8 @@ from owslib.crs import Crs
 WFS_NAMESPACE = 'http://www.opengis.net/wfs'
 OGC_NAMESPACE = 'http://www.opengis.net/ogc'
 
-
-#TODO: use nspath in util.py -- Done
-#def nspath(path, ns=WFS_NAMESPACE):
-#    """
-#    Prefix the given path with the given namespace identifier.
-#    
-#    Parameters
-#    ----------
-#    path : string
-#        ElementTree API Compatible path expression
-#
-#    ns : string
-#        The XML namespace. Defaults to WFS namespace.
-#    """
-#    components = []
-#    for component in path.split("/"):
-#        if component != '*':
-#            component = "{%s}%s" % (ns, component)
-#        components.append(component)
-#    return "/".join(components)
-
-
 class ServiceException(Exception):
     pass
-
 
 class WebFeatureService_1_0_0(object):
     """Abstraction for OGC Web Feature Service (WFS).
