@@ -32,12 +32,12 @@
 #no longer cciw.ca, switching to different hosting service
     >>> for service in services:
     ...     service.url
-	'http://www.ngdc.noaa.gov/geoportal/csw'
+    'http://www.ngdc.noaa.gov/geoportal/csw'
     'url'
     'http://motherlode.ucar.edu:8080/thredds/wcs/fmrc/NCEP/NAM/CONUS_40km/conduit/NCEP-NAM-CONUS_40km-conduit_best.ncd'
     'url'
-	
-	#old expected response
+    
+    #old expected response
     #'http://devgeo.cciw.ca/geonetwork/srv/en/csw'
     #'url'
     #'http://motherlode.ucar.edu:8080/thredds/wcs/fmrc/NCEP/NAM/CONUS_40km/conduit/NCEP-NAM-CONUS_40km-conduit_best.ncd'
@@ -133,7 +133,7 @@
 #CSW does not conform to this
 #WCS boundingbox handling is also different (has multiple boundingboxes). TODO: needs harmonising.
 
-	
+    
     >>> for service in services:
     ...	    if type(service.contents) is dict:
     ...         service.identification.type
