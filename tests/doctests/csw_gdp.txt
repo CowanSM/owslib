@@ -34,14 +34,7 @@
     'Version 3.14'
     >>> c.harvest('somefile','someuri')
     Traceback (most recent call last):
-      File "C:\Python27\lib\doctest.py", line 1289, in __run
-        compileflags, 1) in test.globs
-      File "<doctest csw_gdp.txt[21]>", line 1, in <module>
-        c.harvest('somefile','someuri')
-      File "C:\Users\scowan\Projects\owslib\owslib\csw.py", line 378, in harvest
-        self._invoke()
-      File "C:\Users\scowan\Projects\owslib\owslib\csw.py", line 494, in _invoke
-        raise ows.ExceptionReport(self._exml, self.owscommon.namespace)
+    ...
     ExceptionReport: None
     >>> c.response
     '<?xml version="1.0" encoding="UTF-8"?>\r\n<ows:ExceptionReport xmlns:ows="http://www.opengis.net/ows" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.0.0" xsi:schemaLocation="http://www.opengis.net/ows http://schemas.opengis.net/ows/1.0.0/owsExceptionReport.xsd">\r\n  <ows:Exception exceptionCode="OperationNotSupported" locator="HarvestHarvest operation is not supported by this catalogue.&#xA;" />\r\n</ows:ExceptionReport>\r\n\r\n'
