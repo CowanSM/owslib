@@ -1,6 +1,6 @@
 Imports
 
-    >>> from owslib import sml
+    >>> from owslib.sml import SensorML
     >>> from owslib.etree import etree
     >>> from tests.utils import resource_file
     >>> from owslib.namespaces import OWSLibNamespaces
@@ -13,8 +13,8 @@ Initialize
     >>> smlns = ns.get_namespace('sml')
 
     >>> xml = open(resource_file('sml_ndbc_station.xml'), 'r').read()
-    >>> root = etree.fromstring(xml)
-    >>> system = sml.SystemMetadata(root.findall("{%s}member/{%s}System" % (smlns,smlns))[0])
+    >>> root = SensorML(xml)
+    >>> system = root.systems[0]
 
     >>> system.id
     'station-41012'

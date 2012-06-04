@@ -7,6 +7,20 @@ from owslib.util import testXMLValue, testXMLAttribute, nspath_eval, xmltag_spli
 def nsp(item):
     return nspath_eval(item)
 
+class SensorML(object):
+    def __init__(self, element):
+        if isinstance(element, str):
+            self._root = etree.fromstring(element)
+        else:
+            self._root = element
+
+        if hasattr(self._root, 'getroot'):
+            self._root = self._root.getroot()
+
+        self.systems = []
+        for system in self._root.findall(nsp('sml:member/sml:System')):
+            self.systems.append(SystemMetadata(system))
+
 class SystemMetadata(object):
     """
     <sml:System gml:id="station-52402">
