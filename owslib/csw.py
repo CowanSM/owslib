@@ -13,7 +13,7 @@ import StringIO
 import random
 from owslib.etree import etree
 from owslib import fes
-from owslib.util import nspath_eval, xml2string, testXMLValue, http_post
+from owslib.util import nspath_eval, xml2string, testXMLValue, http_post, setrootelement
 from owslib import ows
 from owslib.iso import MD_Metadata
 from owslib.fgdc import Metadata
@@ -63,9 +63,17 @@ class CatalogueServiceWeb:
 
         if not skip_caps:  # process GetCapabilities
             # construct request
-            node0 = self._setrootelement('csw:GetCapabilities')
+            nsmap = {
+                'csw' : ns.get_namespace('csw'),
+                'ows' : ns.get_versioned_namespace('ows',_ows_version),
+                'xsi' : ns.get_namespace('xsi'),
+            }
+
+            node0 = setrootelement('csw:GetCapabilities', nsmap)
+
             node0.set('service', self.service)
             node0.set(nsp('xsi:schemaLocation'), schema_location)
+
             tmp = etree.SubElement(node0, nsp_ows('ows:AcceptVersions'))
             etree.SubElement(tmp, nsp_ows('ows:Version')).text = self.version
             tmp2 = etree.SubElement(node0, nsp_ows('ows:AcceptFormats'))
@@ -77,13 +85,13 @@ class CatalogueServiceWeb:
             if self.exceptionreport is None:
                 # ServiceIdentification
                 val = self._exml.find(nsp_ows('ows:ServiceIdentification'))
-                self.identification=ows.ServiceIdentification(val,_ows_version)
+                self.identification=ows.ServiceIdentification(val,ns.get_versioned_namespace('ows', _ows_version))
                 # ServiceProvider
                 val = self._exml.find(nsp_ows('ows:ServiceProvider'))
-                self.provider=ows.ServiceProvider(val,_ows_version)
+                self.provider=ows.ServiceProvider(val)
                 # ServiceOperations metadata 
                 op = self._exml.find(nsp_ows('ows:OperationsMetadata'))
-                self.operations = ows.OperationsMetadata(op,_ows_version).operations
+                self.operations = ows.OperationsMetadata(op, ns.get_versioned_namespace('ows', _ows_version)).operations
         
                 # FilterCapabilities
                 val = self._exml.find(nsp('ogc:Filter_Capabilities'))
@@ -103,11 +111,17 @@ class CatalogueServiceWeb:
         """
 
         # construct request
-        node0 = self._setrootelement('csw:DescribeRecord')
-        node0.set('service', self.service)
-        node0.set('version', self.version)
+
+        nsmap = {
+                'csw' : ns.get_namespace('csw'),
+                'xsi' : ns.get_namespace('xsi'),
+            }
+
+        node0 = setrootelement('csw:DescribeRecord', nsmap)
         node0.set('outputFormat', format)
         node0.set('schemaLanguage',ns.get_namespace('xs2'))
+        node0.set('service', self.service)
+        node0.set('version', self.version)
         node0.set(nsp('xsi:schemaLocation'), schema_location)
         etree.SubElement(node0, nsp('csw:TypeName')).text = typename
         self.request = xml2string(etree.tostring(node0))
@@ -132,7 +146,13 @@ class CatalogueServiceWeb:
 
         # construct request
         dtypename = 'ParameterName'
-        node0 = self._setrootelement('csw:GetDomain')
+
+        nsmap = {
+                'csw' : ns.get_namespace('csw'),
+                'xsi' : ns.get_namespace('xsi'),
+            }
+
+        node0 = setrootelement('csw:GetDomain', nsmap)
         node0.set('service', self.service)
         node0.set('version', self.version)
         node0.set(nsp('xsi:schemaLocation'), schema_location)
@@ -151,14 +171,13 @@ class CatalogueServiceWeb:
 
             val = self._exml.find(nsp('csw:DomainValues/csw:%s' % dtypename))
             self.results[dtype] = testXMLValue(val)
-
             # get the list of values associated with the Domain
             self.results['values'] = []
 
             for f in self._exml.findall(nsp('csw:DomainValues/csw:ListOfValues/csw:Value')):
                 self.results['values'].append(testXMLValue(f))
 
-    def getrecords(self, qtype=None, keywords=[], typenames='csw:Record', propertyname='csw:AnyText', bbox=None, esn='summary', sortby=None, outputschema=None, format=outputformat, startposition=0, maxrecords=10, cql=None, xml=None):
+    def getrecords(self, qtype=None, keywords=[], typenames='csw:Record', propertyname='csw:AnyText', bbox=None, esn='summary', sortby=None, outputschema=None, format=outputformat, startposition=0, maxrecords=10, cql=None, xml=None, resulttype='results'):
         """
 
         Construct and process a  GetRecords request
@@ -179,7 +198,7 @@ class CatalogueServiceWeb:
         - maxrecords: the maximum number of records to return. No records are returned if 0 (default is 10)
         - cql: common query language text.  Note this overrides bbox, qtype, keywords
         - xml: raw XML request.  Note this overrides all other options
-
+        - resulttype: the resultType 'hits', 'results', 'validate' (default is 'results')
         """
 
         if outputschema is None:
@@ -193,16 +212,22 @@ class CatalogueServiceWeb:
                 esn = testXMLValue(val)
         else:
             # construct request
-            node0 = self._setrootelement('csw:GetRecords')
-            if etree.__name__ != 'lxml.etree':  # apply nsmap manually
-                node0.set('xmlns:ows',ns.get_versioned_namespace('ows', _ows_version))
-                node0.set('xmlns:gmd',ns.get_namespace('gmd'))
-                node0.set('xmlns:dif',ns.get_namespace('dif'))
-                node0.set('xmlns:fgdc',ns.get_namespace('fgdc'))
+
+            nsmap = {
+                'xsi' : ns.get_namespace('xsi'),
+                'ogc' : ns.get_namespace('ogc'),
+                'dif' : ns.get_namespace('dif'),
+                'ows' : ns.get_versioned_namespace('ows', _ows_version),
+                'fgdc': ns.get_namespace('fgdc'),
+                'gmd' : ns.get_namespace('gmd'),
+                'csw' : ns.get_namespace('csw')
+            }
+
+            node0 = setrootelement('csw:GetRecords', nsmap)
             node0.set('outputSchema', outputschema)
             node0.set('outputFormat', format)
             node0.set('version', self.version)
-            node0.set('resultType', 'results')
+            node0.set('resultType', resulttype)
             node0.set('service', self.service)
             if startposition > 0:
                 node0.set('startPosition', str(startposition))
@@ -257,12 +282,17 @@ class CatalogueServiceWeb:
         if outputschema is None:
             outputschema = ns.get_namespace('csw')
 
+        nsmap = {
+            'csw' : ns.get_namespace('csw'),
+            'xsi' : ns.get_namespace('xsi')
+        }   
+
         # construct request 
-        node0 = self._setrootelement('csw:GetRecordById')
-        node0.set('outputSchema', outputschema)
+        node0 = setrootelement('csw:GetRecordById', nsmap)
         node0.set('outputFormat', format)
-        node0.set('version', self.version)
+        node0.set('outputSchema', outputschema)
         node0.set('service', self.service)
+        node0.set('version', self.version)
         node0.set(nsp('xsi:schemaLocation'), schema_location)
         for i in id:
             etree.SubElement(node0, nsp('csw:Id')).text = i
@@ -297,7 +327,7 @@ class CatalogueServiceWeb:
         """
 
         # construct request
-        node0 = self._setrootelement('csw:Transaction')
+        node0 = setrootelement('csw:Transaction')
         node0.set('version', self.version)
         node0.set('service', self.service)
         node0.set(nsp('xsi:schemaLocation'), schema_location)
@@ -329,7 +359,6 @@ class CatalogueServiceWeb:
 
         if ttype == 'delete':
             self._setconstraint(node1, None, propertyname, keywords, bbox, cql, identifier)
-
         self.request = xml2string(etree.tostring(node0))
 
         self._invoke()
@@ -356,7 +385,7 @@ class CatalogueServiceWeb:
         """
 
         # construct request
-        node0 = self._setrootelement('csw:Harvest')
+        node0 = setrootelement('csw:Harvest')
         node0.set('version', self.version)
         node0.set('service', self.service)
         node0.set(nsp('xsi:schemaLocation'), schema_location)
@@ -439,12 +468,6 @@ class CatalogueServiceWeb:
             return 'owslib_random_%i' % random.randint(1,65536)
         else:
             return el
-
-    def _setrootelement(self, el):
-        if etree.__name__ == 'lxml.etree':  # apply nsmap
-            return etree.Element(nsp(el), nsmap=ns.get_namespaces())
-        else:
-            return etree.Element(nsp(el))
 
     def _setconstraint(self, parent, qtype=None, propertyname='csw:AnyText', keywords=[], bbox=None, cql=None, identifier=None):
         if keywords or bbox is not None or qtype is not None or cql is not None or identifier is not None:

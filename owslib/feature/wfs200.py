@@ -61,7 +61,7 @@ class WebFeatureService_2_0_0(object):
         @param parse_remote_metadata: whether to fully process MetadataURL elements
         @return: initialized WebFeatureService_2_0_0 object
         """
-        obj=object.__new__(self)
+        obj = object.__new__(self)
         obj.__init__(url, version, xml, parse_remote_metadata)
         self.log = logging.getLogger()
         consoleh  = logging.StreamHandler()
@@ -98,8 +98,8 @@ class WebFeatureService_2_0_0(object):
         #need to add to keywords list from featuretypelist information:
         featuretypelistelem=self._capabilities.find(nspath('FeatureTypeList', ns.get_namespace('wfs')))
         featuretypeelems=featuretypelistelem.findall(nspath('FeatureType', ns.get_namespace('wfs')))
-        for f in featuretypeelems:  
-            kwds=f.findall(nspath('Keywords/Keyword'))
+        for f in featuretypeelems:
+            kwds = f.findall(nsp_ows('ows:Keywords/ows:Keyword'))
             if kwds is not None:
                 for kwd in kwds[:]:
                     if kwd.text not in self.identification.keywords:
@@ -107,13 +107,11 @@ class WebFeatureService_2_0_0(object):
 	
    
         #TODO: update serviceProvider metadata, miss it out for now
-        #print vars(self._capabilities)
-        #return
         serviceproviderelem=self._capabilities.find(nsp_ows('ows:ServiceProvider'))
         self.provider=ServiceProvider(serviceproviderelem)
         #serviceOperations metadata 
         op = self._capabilities.find(nspath_eval('ows:OperationsMetadata', _ows_version))
-        self.operations = OperationsMetadata(op, _ows_version).operations
+        self.operations = OperationsMetadata(op, ns.get_versioned_namespace('ows', _ows_version)).operations
                    
         #serviceContents metadata: our assumption is that services use a top-level 
         #layer as a metadata organizer, nothing more. 
@@ -122,8 +120,8 @@ class WebFeatureService_2_0_0(object):
         featuretypelist=self._capabilities.find(nspath('FeatureTypeList',ns.get_namespace('wfs')))
         features = self._capabilities.findall(nspath('FeatureTypeList/FeatureType',ns.get_namespace('wfs')))
         for feature in features:
-            cm=ContentMetadata(feature, featuretypelist, parse_remote_metadata)
-            self.contents[cm.id]=cm       
+            cm = ContentMetadata(feature, featuretypelist, parse_remote_metadata)
+            self.contents[cm.id]=cm
         
         #exceptions
         self.exceptions = [f.text for f \
@@ -138,14 +136,14 @@ class WebFeatureService_2_0_0(object):
     
     def items(self):
         '''supports dict-like items() access'''
-        items=[]
+        items = []
         for item in self.contents:
             items.append((item,self.contents[item]))
         return items
     
     def getfeature(self, typename=None, filter=None, bbox=None, featureid=None,
                    featureversion=None, propertyname=None, maxfeatures=None,storedQueryID=None, storedQueryParams={},
-                   method=nspath('Get')):
+                   method='Get'):
         """Request and return feature data as a file-like object.
         #TODO: NOTE: have changed property name from ['*'] to None - check the use of this in WFS 2.0
         Parameters
@@ -175,17 +173,21 @@ class WebFeatureService_2_0_0(object):
         """
         #log.debug(self.get_operation_by_name('GetFeature'))
         base_url = self.get_operation_by_name('GetFeature').methods[method]['url']
+        
+        if method.upper() == "GET":
+            base_url = base_url if base_url.endswith("?") else base_url+"?"
         request = {'service': 'WFS', 'version': self.version, 'request': 'GetFeature'}
         
         # check featureid
         if featureid:
             request['featureid'] = ','.join(featureid)
         elif bbox:
-#            request['bbox'] = ','.join([str(x) for x in bbox])
+            #request['bbox'] = ','.join([str(x) for x in bbox])
             request['query'] ='<Query xmlns:ogc="http://www.opengis.net/ogc" xmlns:gml="http://www.opengis.net/gml" xmlns:csml="http://ndg.nerc.ac.uk/csml"><ogc:Filter><ogc:BBOX><gml:Envelope srsName="WGS84"><gml:lowerCorner>%s %s</gml:lowerCorner><gml:upperCorner>%s %s</gml:upperCorner></gml:Envelope></ogc:BBOX></ogc:Filter></Query>'%(bbox[1],bbox[0],bbox[3],bbox[2])
         elif filter:
             request['query'] = str(filter)
         if typename:
+            typename = [typename] if type(typename) == type("") else typename
             request['typename'] = ','.join(typename)
         if propertyname: 
             request['propertyname'] = ','.join(propertyname)
@@ -198,7 +200,6 @@ class WebFeatureService_2_0_0(object):
             for param in storedQueryParams:
                 request[param]=storedQueryParams[param]
                 
-        
         data = urlencode(request)
 
         if method == 'Post':
@@ -221,8 +222,8 @@ class WebFeatureService_2_0_0(object):
             if not have_read:
                 data = u.read()
             tree = etree.fromstring(data)
-            if tree.tag == "{%s}ServiceExceptionReport" % ns.get_versioned_namespace('ogc'):
-                se = tree.find(nspath('ServiceException', ns.get_versioned_namespace('ogc')))
+            if tree.tag == "{%s}ServiceExceptionReport" % ns.get_namespace('ogc'):
+                se = tree.find(nspath('ServiceException', ns.get_namespace('ogc')))
                 raise ServiceException, str(se.text).strip()
 
             return StringIO(data)
@@ -234,7 +235,6 @@ class WebFeatureService_2_0_0(object):
     def getpropertyvalue(self, query=None, storedquery_id=None, valuereference=None, typename=None, method=nspath('Get'),**kwargs):
         ''' the WFS GetPropertyValue method'''     
         base_url = self.get_operation_by_name('GetPropertyValue').methods[method]['url']
-
         request = {'service': 'WFS', 'version': self.version, 'request': 'GetPropertyValue'}
         if query:
             request['query'] = str(query)
@@ -342,24 +342,32 @@ class ContentMetadata:
             self.abstract = abstract.text
         else:
             self.abstract = None
+
         self.keywords = [f.text for f in elem.findall(nspath('Keywords',ns.get_namespace('wfs')))]
 
         # bboxes
-        self.boundingBox = None
-        b = elem.find(nspath('BoundingBox',ns.get_namespace('wfs')))
-        if b is not None:
-            self.boundingBox = (float(b.attrib['minx']),float(b.attrib['miny']),
-                    float(b.attrib['maxx']), float(b.attrib['maxy']),
-                    b.attrib['SRS'])
         self.boundingBoxWGS84 = None
-        b = elem.find(nspath('LatLongBoundingBox',ns.get_namespace('wfs')))
+        self.boundingBox = None
+        b = elem.find(nsp_ows('ows:WGS84BoundingBox'))
         if b is not None:
-            self.boundingBoxWGS84 = (
-                    float(b.attrib['minx']),float(b.attrib['miny']),
-                    float(b.attrib['maxx']), float(b.attrib['maxy']),
-                    )
+            lc = b.find(nsp_ows("ows:LowerCorner"))
+            uc = b.find(nsp_ows("ows:UpperCorner"))
+            ll = [float(s) for s in lc.text.split()]
+            ur = [float(s) for s in uc.text.split()]
+            self.boundingBoxWGS84 = (ll[0],ll[1],ur[0],ur[1])
+
+            # there is no such thing as a bounding box
+            # make copy of the WGS84BoundingBox
+            self.boundingBox = (self.boundingBoxWGS84[0],
+                                self.boundingBoxWGS84[1],
+                                self.boundingBoxWGS84[2],
+                                self.boundingBoxWGS84[3],
+                                Crs("epsg:4326"))
         # crs options
-        self.crsOptions = [Crs(srs.text) for srs in elem.findall(nspath('SRS'))]
+        self.crsOptions = [Crs(srs.text) for srs in elem.findall(nspath('OtherCRS',ns.get_namespace('wfs')))]
+        defaultCrs =  elem.findall(nspath('DefaultCRS',ns.get_namespace('wfs')))
+        if len(defaultCrs) > 0:
+            self.crsOptions.insert(-1,Crs(defaultCrs[0].text))
 
         # verbs
         self.verbOptions = [op.tag for op \

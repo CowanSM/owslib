@@ -18,6 +18,8 @@ from urllib2 import urlopen, HTTPError, Request
 from urllib2 import HTTPPasswordMgrWithDefaultRealm
 from urllib2 import HTTPBasicAuthHandler
 from StringIO import StringIO
+import cgi
+from urllib import urlencode
 from owslib.namespaces import OWSLibNamespaces
 
 ns = OWSLibNamespaces()
@@ -65,11 +67,20 @@ def openURL(url_base, data, method='Get', cookies=None, username=None, password=
         opener = urllib2.build_opener(auth_handler)
         openit = opener.open
     else:
+        # NOTE: optionally set debuglevel>0 to debug HTTP connection
+        #opener = urllib2.build_opener(urllib2.HTTPHandler(debuglevel=0))
+        #openit = opener.open
         openit = urlopen
    
     try:
         if method == 'Post':
             req = Request(url_base, data)
+            # set appropriate header if posting XML
+            try:
+                xml = etree.fromstring(data)
+                req.add_header('Content-Type', "text/xml")
+            except:
+                pass
         else:
             req=Request(url_base + data)
         if cookies is not None:
@@ -99,7 +110,6 @@ def openURL(url_base, data, method='Get', cookies=None, username=None, password=
 #default namespace for nspath is OWS common
 OWS_NAMESPACE = 'http://www.opengis.net/ows'
 def nspath(path, namespace=OWS_NAMESPACE):
-
     """
     Prefix the given path with the given namespace identifier.
     
@@ -110,7 +120,6 @@ def nspath(path, namespace=OWS_NAMESPACE):
     - ns: the XML namespace URI.
 
     """
-
     if path is None:
         return -1
 
@@ -196,7 +205,7 @@ def http_post(url=None, request=None, lang='en-US', timeout=10):
     if url is not None:
         u = urlparse.urlsplit(url)
         r = urllib2.Request(url, request)
-        r.add_header('User-Agent', 'OWSLib (https://sourceforge.net/apps/trac/owslib)')
+        r.add_header('User-Agent', 'OWSLib (https://geopython.github.com/OWSLib)')
         r.add_header('Content-type', 'text/xml')
         r.add_header('Content-length', '%d' % len(request))
         r.add_header('Accept', 'text/xml')
@@ -264,6 +273,47 @@ def xmltag_split(tag):
     except:
         return tag
 
+def getNamespace(element):
+    ''' Utility method to extract the namespace from an XML element tag encoded as {namespace}localname. '''
+    if element.tag[0]=='{':
+        return element.tag[1:].split("}")[0]
+    else:
+        return ""
+
+def build_get_url(base_url, params):
+    ''' Utility function to build a full HTTP GET URL from the service base URL and a dictionary of HTTP parameters. '''
+    
+    qs = []
+    if base_url.find('?') != -1:
+        qs = cgi.parse_qsl(base_url.split('?')[1])
+
+    pars = [x[0] for x in qs]
+
+    for key,value in params.iteritems():
+        if key not in pars:
+            qs.append( (key,value) )
+
+    urlqs = urlencode(tuple(qs))
+    return base_url.split('?')[0] + '?' + urlqs
+
+def dump(obj, prefix=''):
+    '''Utility function to print to standard output a generic object with all its attributes.'''
+    
+    print "%s %s : %s" % (prefix, obj.__class__, obj.__dict__)
+    
+def getTypedValue(type, value):
+    ''' Utility function to cast a string value to the appropriate XSD type. '''
+    
+    if type=='boolean':
+       return bool(value)
+    elif type=='integer':
+       return int(value)
+    elif type=='float':
+        return float(value)
+    elif type=='string':
+        return str(value)
+    else:
+        return value # no type casting
 
 def extract_time(element):
     ''' return a datetime object based on a gml text string 
@@ -301,3 +351,13 @@ def extract_xml_list(elements):
     flattened = [item.strip() for sublist in keywords for item in sublist]
     remove_blank = filter(None, flattened)
     return remove_blank
+
+def setrootelement(element, nsmap=None):
+        if etree.__name__ == 'lxml.etree':  # apply nsmap
+            return etree.Element(nspath_eval(element), nsmap=nsmap)
+        else:
+            e = etree.Element(nspath_eval(element))
+            if nsmap is not None:
+                for m in nsmap:
+                    e.set('xmlns:%s' % m, nsmap[m])
+            return e

@@ -203,7 +203,6 @@ class WebFeatureService_1_0_0(object):
 
 class ServiceIdentification(object):
     ''' Implements IServiceIdentificationMetadata '''
-     
     def __init__(self, infoset, version):
         self._root=infoset
         self.type = testXMLValue(self._root.find(wfs_ns('Name')))

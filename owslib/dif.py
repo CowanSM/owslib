@@ -14,7 +14,6 @@ from owslib import util
 
 # default variables
 
-
 class DIF(object):
     """ Process DIF """
     def __init__(self, md):

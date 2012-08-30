@@ -15,18 +15,19 @@ class PyTest(Command):
         raise SystemExit(errno)
 
 setup(name          = 'OWSLib',
-      version       = '0.4.0',
+      version       = '0.5-dev',
       description   = 'OGC Web Service utility library',
       long_description = readme,
       license       = 'BSD',
-      keywords      = 'gis ogc iso 19115 fgdc dif ows wfs wms sos csw capabilities metadata',
+      keywords      = 'gis ogc iso 19115 fgdc dif ows wfs wms sos csw wps wcs capabilities metadata',
       author        = 'Sean Gillies',
       author_email  = 'sgillies@frii.com',
       maintainer        = 'Sean Gillies',
       maintainer_email  = 'sgillies@frii.com',
-      url           = 'https://sourceforge.net/apps/trac/owslib',
+      url           = 'https://geopython.github.com/OWSLib',
       packages      = find_packages(),
-      cmdclass = {'test': PyTest},
+      cmdclass      = {'test': PyTest},
+      tests_require = ['pytest','pytest-cov'],
       classifiers   = [
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',

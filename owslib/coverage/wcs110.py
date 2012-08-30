@@ -53,6 +53,8 @@ class WebCoverageService_1_1_0(WCSBase):
         
         #serviceIdentification metadata
         elem=self._capabilities.find('{http://www.opengis.net/wcs/1.1/ows}ServiceIdentification')
+        if elem is None:
+            elem=self._capabilities.find('{http://www.opengis.net/ows}ServiceIdentification')
         self.identification=ServiceIdentification(elem)
         
         #serviceProvider
@@ -132,7 +134,6 @@ class WebCoverageService_1_1_0(WCSBase):
         if method == 'Get':
             method='{http://www.opengis.net/wcs/1.1/ows}Get'
         base_url = self.get_operation_by_name('GetCoverage').methods[method]['url']
-
 
         #process kwargs
         request = {'version': self.version, 'request': 'GetCoverage', 'service':'WCS'}

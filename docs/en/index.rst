@@ -29,33 +29,35 @@ Features
 Standards Support
 -----------------
 
-+-------------------+-------------------+
-| Standard          | Version(s)        |
-+===================+===================+
-| `OGC WMS`_        | 1.1.1             |
-+-------------------+-------------------+
-| `OGC WFS`_        | 1.0.0, 2.0.0      |
-+-------------------+-------------------+
-| `OGC WCS`_        | 1.0.0, 1.1.0      |
-+-------------------+-------------------+
-| `OGC WMC`_        | 1.1.0             |
-+-------------------+-------------------+
-| `OGC SOS`_        | 1.0.0             |
-+-------------------+-------------------+
-| `OGC CSW`_        | 2.0.2             |
-+-------------------+-------------------+
-| `OGC Filter`_     | 1.1.0             |
-+-------------------+-------------------+
-| `OGC OWS Common`_ | 1.0.0, 1.1.0, 2.0 |
-+-------------------+-------------------+
-| `NASA DIF`_       | 9.7               |
-+-------------------+-------------------+
-| `FGDC CSDGM`_     | 1998              |
-+-------------------+-------------------+
-| `ISO 19139`_      | 2007              |
-+-------------------+-------------------+
-| `Dublin Core`_    | 1.1               |
-+-------------------+-------------------+
++-------------------+---------------------+
+| Standard          | Version(s)          |
++===================+=====================+
+| `OGC WMS`_        | 1.1.1               |
++-------------------+---------------------+
+| `OGC WFS`_        | 1.0.0, 1.1.0, 2.0.0 |
++-------------------+---------------------+
+| `OGC WCS`_        | 1.0.0, 1.1.0        |
++-------------------+---------------------+
+| `OGC WMC`_        | 1.1.0               |
++-------------------+---------------------+
+| `OGC SOS`_        | 1.0.0               |
++-------------------+---------------------+
+| `OGC CSW`_        | 2.0.2               |
++-------------------+---------------------+
+| `OGC WPS`_        | 1.0.0               |
++-------------------+---------------------+
+| `OGC Filter`_     | 1.1.0               |
++-------------------+---------------------+
+| `OGC OWS Common`_ | 1.0.0, 1.1.0, 2.0   |
++-------------------+---------------------+
+| `NASA DIF`_       | 9.7                 |
++-------------------+---------------------+
+| `FGDC CSDGM`_     | 1998                |
++-------------------+---------------------+
+| `ISO 19139`_      | 2007                |
++-------------------+---------------------+
+| `Dublin Core`_    | 1.1                 |
++-------------------+---------------------+
 
 Installation
 ============
@@ -74,17 +76,11 @@ PyPI:
 
   $ easy_install OWSLib
 
-Subversion:
-
-.. code-block:: bash
-
-  $ svn co https://owslib.svn.sourceforge.net/svnroot/owslib/trunk/
-
 Git:
 
 .. code-block:: bash
 
-  $ git clone git@github.com:tomkralidis/owslib.git
+  $ git clone git@github.com:geopython/OWSLib.git
 
 Usage
 =====
@@ -291,8 +287,201 @@ Harvest a resource
 WMC
 ---
 
+WPS
+---
+
+Inspect a remote WPS and retrieve the supported processes:
+
+.. code-block:: python
+
+	>>> from owslib.wps import WebProcessingService
+	>>> wps = WebProcessingService('http://cida.usgs.gov/climate/gdp/process/WebProcessingService', verbose=False, skip_caps=True)
+	>>> wps.getcapabilities()
+	>>> wps.identification.type
+	'WPS'
+	>>> wps.identification.title
+	'Geo Data Portal WPS Processing'
+	>>> wps.identification.abstract
+	'Geo Data Portal WPS Processing'
+	>>> for operation in wps.operations:
+	...     operation.name
+	... 
+	'GetCapabilities'
+	'DescribeProcess'
+	'Execute'
+	>>> for process in wps.processes:
+	...     process.identifier, process.title
+	...     
+	('gov.usgs.cida.gdp.wps.algorithm.FeatureCoverageIntersectionAlgorithm', 'Feature Coverage WCS Intersection')
+	('gov.usgs.cida.gdp.wps.algorithm.FeatureCoverageOPeNDAPIntersectionAlgorithm', 'Feature Coverage OPeNDAP Intersection')
+	('gov.usgs.cida.gdp.wps.algorithm.FeatureCategoricalGridCoverageAlgorithm', 'Feature Categorical Grid Coverage')
+	('gov.usgs.cida.gdp.wps.algorithm.FeatureWeightedGridStatisticsAlgorithm', 'Feature Weighted Grid Statistics')
+	('gov.usgs.cida.gdp.wps.algorithm.FeatureGridStatisticsAlgorithm', 'Feature Grid Statistics')
+	('gov.usgs.cida.gdp.wps.algorithm.PRMSParameterGeneratorAlgorithm', 'PRMS Parameter Generator')
+	>>> 
+
+
+Determine how a specific process needs to be invoked - i.e. what are its input parameters, and output result:
+
+.. code-block:: python
+
+	>>> from owslib.wps import printInputOutput
+	>>> process = wps.describeprocess('gov.usgs.cida.gdp.wps.algorithm.FeatureWeightedGridStatisticsAlgorithm')
+	>>> process.identifier
+	'gov.usgs.cida.gdp.wps.algorithm.FeatureWeightedGridStatisticsAlgorithm'
+	>>> process.title
+	'Feature Weighted Grid Statistics'
+	>>> process.abstract
+	'This algorithm generates area weighted statistics of a gridded dataset for a set of vector polygon features. Using the bounding-box that encloses ...
+	>>> for input in process.dataInputs:
+	...     printInputOutput(input)
+	... 
+	 identifier=FEATURE_COLLECTION, title=Feature Collection, abstract=A feature collection encoded as a WFS request or one of the supported GML profiles.,...
+	 Supported Value: mimeType=text/xml, encoding=UTF-8, schema=http://schemas.opengis.net/gml/2.0.0/feature.xsd
+	 Supported Value: mimeType=text/xml, encoding=UTF-8, schema=http://schemas.opengis.net/gml/2.1.1/feature.xsd
+	 Supported Value: mimeType=text/xml, encoding=UTF-8, schema=http://schemas.opengis.net/gml/2.1.2/feature.xsd
+	 Supported Value: mimeType=text/xml, encoding=UTF-8, schema=http://schemas.opengis.net/gml/2.1.2.1/feature.xsd
+	 Supported Value: mimeType=text/xml, encoding=UTF-8, schema=http://schemas.opengis.net/gml/3.0.0/base/feature.xsd
+	 Supported Value: mimeType=text/xml, encoding=UTF-8, schema=http://schemas.opengis.net/gml/3.0.1/base/feature.xsd
+	 Supported Value: mimeType=text/xml, encoding=UTF-8, schema=http://schemas.opengis.net/gml/3.1.0/base/feature.xsd
+	 Supported Value: mimeType=text/xml, encoding=UTF-8, schema=http://schemas.opengis.net/gml/3.1.1/base/feature.xsd
+	 Supported Value: mimeType=text/xml, encoding=UTF-8, schema=http://schemas.opengis.net/gml/3.2.1/base/feature.xsd
+	 Default Value: mimeType=text/xml, encoding=UTF-8, schema=http://schemas.opengis.net/gml/2.0.0/feature.xsd 
+	 minOccurs=1, maxOccurs=1
+	 identifier=DATASET_URI, title=Dataset URI, abstract=The base data web service URI for the dataset of interest., data type=anyURI
+	 Allowed Value: AnyValue
+	 Default Value: None 
+	 minOccurs=1, maxOccurs=1
+	 identifier=DATASET_ID, title=Dataset Identifier, abstract=The unique identifier for the data type or variable of interest., data type=string
+	 Allowed Value: AnyValue
+	 Default Value: None 
+	 minOccurs=1, maxOccurs=2147483647
+	 identifier=REQUIRE_FULL_COVERAGE, title=Require Full Coverage, abstract=If turned on, the service will require that the dataset of interest ....
+	 Allowed Value: True
+	 Default Value: True 
+	 minOccurs=1, maxOccurs=1
+	 identifier=TIME_START, title=Time Start, abstract=The date to begin analysis., data type=dateTime
+	 Allowed Value: AnyValue
+	 Default Value: None 
+	 minOccurs=0, maxOccurs=1
+	 identifier=TIME_END, title=Time End, abstract=The date to end analysis., data type=dateTime
+	 Allowed Value: AnyValue
+	 Default Value: None 
+	 minOccurs=0, maxOccurs=1
+	 identifier=FEATURE_ATTRIBUTE_NAME, title=Feature Attribute Name, abstract=The attribute that will be used to label column headers in processing output., ...
+	 Allowed Value: AnyValue
+	 Default Value: None 
+	 minOccurs=1, maxOccurs=1
+	 identifier=DELIMITER, title=Delimiter, abstract=The delimiter that will be used to separate columns in the processing output., data type=string
+	 Allowed Value: COMMA
+	 Allowed Value: TAB
+	 Allowed Value: SPACE
+	 Default Value: COMMA 
+	 minOccurs=1, maxOccurs=1
+	 identifier=STATISTICS, title=Statistics, abstract=Statistics that will be returned for each feature in the processing output., data type=string
+	 Allowed Value: MEAN
+	 Allowed Value: MINIMUM
+	 Allowed Value: MAXIMUM
+	 Allowed Value: VARIANCE
+	 Allowed Value: STD_DEV
+	 Allowed Value: SUM
+	 Allowed Value: COUNT
+	 Default Value: None 
+	 minOccurs=1, maxOccurs=7
+	 identifier=GROUP_BY, title=Group By, abstract=If multiple features and statistics are selected, this will change whether the processing output ...
+	 Allowed Value: STATISTIC
+	 Allowed Value: FEATURE_ATTRIBUTE
+	 Default Value: None 
+	 minOccurs=1, maxOccurs=1
+	 identifier=SUMMARIZE_TIMESTEP, title=Summarize Timestep, abstract=If selected, processing output will include columns with summarized statistics ...
+	 Allowed Value: True
+	 Default Value: True 
+	 minOccurs=0, maxOccurs=1
+	 identifier=SUMMARIZE_FEATURE_ATTRIBUTE, title=Summarize Feature Attribute, abstract=If selected, processing output will include a final row of ...
+	 Allowed Value: True
+	 Default Value: True 
+	 minOccurs=0, maxOccurs=1
+	>>> for output in process.processOutputs:
+	...     printInputOutput(output)
+	... 
+	 identifier=OUTPUT, title=Output File, abstract=A delimited text file containing requested process output., data type=ComplexData
+	 Supported Value: mimeType=text/csv, encoding=UTF-8, schema=None
+	 Default Value: mimeType=text/csv, encoding=UTF-8, schema=None 
+	 reference=None, mimeType=None
+	>>> 
+
+Submit a processing request (extraction of a climate index variable over a specific GML polygon, for a given period of time), monitor the execution until complete:
+
+.. code-block:: python
+
+	>>> from owslib.wps import GMLMultiPolygonFeatureCollection
+	>>> polygon = [(-102.8184, 39.5273), (-102.8184, 37.418), (-101.2363, 37.418), (-101.2363, 39.5273), (-102.8184, 39.5273)]
+	>>> featureCollection = GMLMultiPolygonFeatureCollection( [polygon] )
+	>>> processid = 'gov.usgs.cida.gdp.wps.algorithm.FeatureWeightedGridStatisticsAlgorithm'
+	>>> inputs = [ ("FEATURE_ATTRIBUTE_NAME","the_geom"),
+	...            ("DATASET_URI", "dods://cida.usgs.gov/qa/thredds/dodsC/derivatives/derivative-days_above_threshold.pr.ncml"),
+	...            ("DATASET_ID", "ensemble_b1_pr-days_above_threshold"),
+	...            ("TIME_START","2010-01-01T00:00:00.000Z"),
+	...            ("TIME_END","2011-01-01T00:00:00.000Z"),
+	...            ("REQUIRE_FULL_COVERAGE","false"),
+	...            ("DELIMITER","COMMA"),
+	...            ("STATISTICS","MEAN"),
+	...            ("GROUP_BY","STATISTIC"),
+	...            ("SUMMARIZE_TIMESTEP","false"),
+	...            ("SUMMARIZE_FEATURE_ATTRIBUTE","false"),
+	...            ("FEATURE_COLLECTION", featureCollection)
+	...           ]
+	>>> output = "OUTPUT"
+	>>> execution = wps.execute(processid, inputs, output = "OUTPUT")
+	Executing WPS request...
+	Execution status=ProcessStarted
+	>>> from owslib.wps import monitorExecution
+	>>> monitorExecution(execution)
+	
+	Checking execution status... (location=http://cida.usgs.gov/climate/gdp/process/RetrieveResultServlet?id=6809217153012787208)
+	Execution status=ProcessSucceeded
+	Execution status: ProcessSucceeded
+	Output URL=http://cida.usgs.gov/climate/gdp/process/RetrieveResultServlet?id=6809217153012787208OUTPUT.3cbcd666-a912-456f-84a3-6ede450aca95
+	>>> 
+
+Alternatively, define the feature through an embedded query to a WFS server:
+
+.. code-block:: python
+
+	>>> from owslib.wps import WFSQuery, WFSFeatureCollection
+	>>> wfsUrl = "http://cida.usgs.gov/climate/gdp/proxy/http://igsarm-cida-gdp2.er.usgs.gov:8082/geoserver/wfs"
+	>>> query = WFSQuery("sample:CONUS_States", propertyNames=['the_geom',"STATE"], filters=["CONUS_States.508","CONUS_States.469"])
+	>>> featureCollection = WFSFeatureCollection(wfsUrl, query)
+	>>> # same process submission as above
+	... 
+
+You can also submit a pre-made request encoded as WPS XML:
+
+.. code-block:: python
+
+	>>> request = open('/Users/cinquini/Documents/workspace-cog/wps/tests/wps_USGSExecuteRequest1.xml','r').read()
+	>>> execution = wps.execute(None, [], request=request)
+	Executing WPS request...
+	Execution status=ProcessStarted
+	>>> monitorExecution(execution)
+	
+	Checking execution status... (location=http://cida.usgs.gov/climate/gdp/process/RetrieveResultServlet?id=5103866488472745994)
+	Execution status=ProcessSucceeded
+	Execution status: ProcessSucceeded
+	Output URL=http://cida.usgs.gov/climate/gdp/process/RetrieveResultServlet?id=5103866488472745994OUTPUT.f80e2a78-96a9-4343-9777-be60fac5b256
+
+
 SOS
 ---
+
+GetCapabilities
+
+.. include:: ../../tests/doctests/sos_ndbc_getcapabilities.txt
+
+DescribeSensor / GetObservation
+
+.. include:: ../../tests/doctests/sos_ndbc_getobservation.txt
+
 
 ISO
 ---
@@ -307,12 +496,12 @@ ISO
 
 ISO Codelists:
 
-.. include:: ../../tests/iso_codelist.txt
+.. include:: ../../tests/doctests/iso_codelist.txt
 
 CRS Handling
 ------------
 
-.. include:: ../../tests/crs.txt
+.. include:: ../../tests/doctests/crs.txt
 
 Dublin Core
 -----------
@@ -326,9 +515,9 @@ FGDC
 Development
 ===========
 
-The OWSLib wiki is located at https://sourceforge.net/apps/trac/owslib.
+The OWSLib wiki is located at https://github.com/geopython/OWSLib/wiki
 
-The OWSLib source code is available at https://owslib.svn.sourceforge.net/svnroot/owslib/trunk/.  You can browse the source code at https://sourceforge.net/apps/trac/owslib/browser.
+The OWSLib source code is available at https://github.com/geopython/OWSLib
 
 You can find out about software metrics at the OWSLib ohloh page at http://www.ohloh.net/p/OWSLib.
 
@@ -341,17 +530,27 @@ Support
 Mailing Lists
 -------------
 
-OWSLib provides users and developers mailing lists.  Subscription options and archives are available at https://lists.sourceforge.net/mailman/listinfo/owslib-users and https://lists.sourceforge.net/mailman/listinfo/owslib-devel.
+OWSLib provides users and developers mailing lists.  Subscription options and archives are available at http://lists.osgeo.org/mailman/listinfo/owslib-users and http://lists.osgeo.org/mailman/listinfo/owslib-devel.
 
 Submitting Questions to Community
 ---------------------------------
 
-To submit questions to a mailing list, first join the list by following the subscription procedure above. Then post questions to the list by sending an email message to either owslib-users@sourceforge.net or owslib-devel@lists.sourceforge.net.
+To submit questions to a mailing list, first join the list by following the subscription procedure above. Then post questions to the list by sending an email message to either owslib-users@lists.osgeo.org or owslib-devel@lists.osgeo.org.
 
 Searching the Archives
 ----------------------
 
-All Community archives are located in https://sourceforge.net/mailarchive/forum.php?forum_name=owslib-users https://sourceforge.net/mailarchive/forum.php?forum_name=owslib-devel.
+All Community archives are located in http://lists.osgeo.org/pipermail/owslib-users/ http://lists.osgeo.org/pipermail/owslib-devel/
+
+Metrics
+-------
+
+You can find out about software metrics at the pycsw `ohloh`_ page.  pycsw is also registered on `CIA.vc`_.
+
+IRC
+---
+
+As well, visit OWSLib on IRC on ``#geopython`` at `freenode`_ for realtime discussion.
 
 License
 =======
@@ -392,12 +591,16 @@ Credits
  * Dominic Lowe <D.Lowe@rl.ac.uk>
  * Jo Walsh <jo@frot.org>
  * Tom Kralidis <tomkralidis@hotmail.com>
+ * Luca Cinquini <luca.cinquini@jpl.nasa.gov>
+ * Sean Cowan <scowan@asascience.com>
+ * Kyle Wilcox <kwilcox@asascience.com>
 
 .. _`Open Geospatial Consortium`: http://www.opengeospatial.org/
 .. _`OGC WMS`: http://www.opengeospatial.org/standards/wms
 .. _`OGC WFS`: http://www.opengeospatial.org/standards/wfs
 .. _`OGC WCS`: http://www.opengeospatial.org/standards/wcs
 .. _`OGC WMC`: http://www.opengeospatial.org/standards/wmc
+.. _`OGC WPS`: http://www.opengeospatial.org/standards/wps
 .. _`OGC SOS`: http://www.opengeospatial.org/standards/sos
 .. _`OGC CSW`: http://www.opengeospatial.org/standards/cat
 .. _`OGC Filter`: http://www.opengeospatial.org/standards/filter
@@ -407,3 +610,7 @@ Credits
 .. _`ISO 19115`: http://www.iso.org/iso/catalogue_detail.htm?csnumber=26020
 .. _`ISO 19139`: http://www.iso.org/iso/catalogue_detail.htm?csnumber=32557
 .. _`Dublin Core`: http://www.dublincore.org/
+.. _`freenode`: http://freenode.net/
+.. _`ohloh`: http://www.ohloh.net/p/OWSLib
+.. _`CIA.vc`: http://cia.vc/stats/project/OWSLib
+
