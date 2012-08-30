@@ -16,6 +16,9 @@ ns = OWSLibNamespaces()
 
 _ows_namespace = ns.get_versioned_namespace('ows','1.1.0')
 
+SOS_GETOBS_SCHEMA = 'http://www.opengis.net/sos/1.0 http://schemas.opengis.net/sos/1.0.0/sosGetObservation.xsd'
+SOS_DESCSEN_SCHEMA = 'http://www.opengis.net/sos/1.0 http://schemas.opengis.net/sos/1,0,0/sosDescribeSensor.xsd'
+
 def nsp_ows(text, namespace=None):
     if namespace is None:
         namespace = _ows_namespace
@@ -90,25 +93,34 @@ class SensorObservationService(object):
 
     def describe_sensor(self,   outputFormat=None,
                                 procedure=None,
-                                method='Get',
+                                method=None,
                                 **kwargs):
 
+        if method is None:
+            if 'Get' in self.get_operation_by_name('DescribeSensor').methods:
+                method = 'Get'
+            else:
+                method = 'Post'
+
         base_url = self.get_operation_by_name('DescribeSensor').methods[method]['url']        
-        request = {'service': 'SOS', 'version': self.version, 'request': 'DescribeSensor'}
-
-        # Required Fields
         assert isinstance(outputFormat, str)
-        request['outputFormat'] = outputFormat
+        assert isinstance(procedure, str)        
+        if method.lower() == 'post':
+            # create xml for post method
+            data = self.create_desc_sen_xml(outputFormat, procedure, kwargs)
+        else:
+            request = {'service': 'SOS', 'version': self.version, 'request': 'DescribeSensor'}
 
-        assert isinstance(procedure, str)
-        request['procedure'] = procedure
+            # Required Fields
+            request['outputFormat'] = outputFormat
+            request['procedure'] = procedure
 
-        # Optional Fields
-        if kwargs:
-            for kw in kwargs:
-                request[kw]=kwargs[kw]
-       
-        data = urlencode(request)        
+            # Optional Fields
+            if kwargs:
+                for kw in kwargs:
+                    request[kw]=kwargs[kw]
+           
+            data = urlencode(request)        
 
         response = openURL(base_url, data, method, username=self.username, password=self.password).read()
         tr = etree.fromstring(response)
@@ -122,7 +134,7 @@ class SensorObservationService(object):
                                 offerings=None,
                                 observedProperties=None,
                                 eventTime=None,
-                                method='Get',
+                                method=None,
                                 **kwargs):
         """
         Parameters
@@ -134,30 +146,37 @@ class SensorObservationService(object):
         **kwargs : extra arguments
             anything else e.g. vendor specific parameters
         """
+        if method is None:
+            if 'Get' in self.get_operation_by_name('GetObservation').methods:
+                method = 'Get'
+            else:
+                method = 'Post'
 
-        base_url = self.get_operation_by_name('GetObservation').methods[method]['url']        
-        request = {'service': 'SOS', 'version': self.version, 'request': 'GetObservation'}
-
-        # Required Fields
+        base_url = self.get_operation_by_name('GetObservation').methods[method]['url']
         assert isinstance(offerings, list) and len(offerings) > 0
-        request['offering'] = ','.join(offerings)
-
         assert isinstance(observedProperties, list) and len(observedProperties) > 0
-        request['observedproperty'] = ','.join(observedProperties)
-
         assert isinstance(responseFormat, str)
-        request['responseFormat'] = responseFormat
+        if method.lower() == 'post':
+            # create xml for post request
+            data = self.create_get_obs_xml(responseFormat, offerings, observedProperties, eventTime, kwargs)
+            # return etree.tostring(etree.fromstring(data), pretty_print=True)
+        else:
+            request = {'service': 'SOS', 'version': self.version, 'request': 'GetObservation'}
 
+            # Required Fields
+            request['offering'] = ','.join(offerings)
+            request['observedproperty'] = ','.join(observedProperties)
+            request['responseFormat'] = responseFormat
 
-        # Optional Fields
-        if eventTime is not None:
-            request['eventTime'] = eventTime
+            # Optional Fields
+            if eventTime is not None:
+                request['eventTime'] = eventTime
 
-        if kwargs:
-            for kw in kwargs:
-                request[kw]=kwargs[kw]
+            if kwargs:
+                for kw in kwargs:
+                    request[kw]=kwargs[kw]
 
-        data = urlencode(request)        
+            data = urlencode(request)        
 
         response = openURL(base_url, data, method, username=self.username, password=self.password).read()
         tr = etree.fromstring(response)
@@ -175,6 +194,94 @@ class SensorObservationService(object):
             if item.lower() == name.lower():
                 return self.operations[item]
         raise KeyError, "No Operation named %s" % name
+
+    def create_desc_sen_xml(self, output_format, procedure, optionals):
+        '''
+            Generate the xml needed for a POST request to Describe Sensor.
+
+            Returns a string representation of the xml tree created.
+            Parameters
+            ----------
+            output_format : string
+                The string representation of the requested response format
+            procedure : string
+                urn of the sensor being requested
+            optionals : dict
+                dictionary of optional parameters for DescribeSensor (usually vendor related)
+        '''
+        namespace = OWSLibNamespaces()
+        # set default namespace to sos
+        namespace.namespace_dict[None] = 'http://www.opengis.net/sos/1.0'
+        # output_format is added as an attribute to the DescribeSensor tag
+        data = etree.Element('DescribeSensor', service='SOS', version='1.0.0', outputFormat=output_format, nsmap=namespace.namespace_dict)
+        data.set('{%s}schemaLocation' % (namespace.get_namespace('xsi')), SOS_DESCSEN_SCHEMA)
+        # procedure is the only required tag inside of DescribeSensor
+        proc = etree.SubElement(data, 'procedure')
+        proc.text = unicode(procedure)
+        # add optional fields as sub elements of data
+        for item in optionals:
+            child = etree.SubElement(data, item)
+            child.text = unicode(kwargs[item])
+
+        return etree.tostring(data)
+
+    def create_get_obs_xml(self, response_format, offerings, observed_properties, event_time, optionals):
+        '''
+            Generate the xml for a POST request to GetObservation
+
+            Returns a string representation of the xml tree created.
+            Parameters
+            ----------
+            response_format : string
+                The string representation of the requested response format
+            offerings : list
+                list of offerings in the request
+            observed_properties : list
+                list of phenomena that are requested
+            event_time : str or list
+                (optional) times tamp or time period to restrict response
+            optionals : dict
+                dictionary of optional parameters for GetObservation (usually vendor related)
+        '''
+        namespace = OWSLibNamespaces()
+        # set default namespace to sos
+        namespace.namespace_dict[None] = 'http://www.opengis.net/sos/1.0'
+        data = etree.Element('GetObservation', service='SOS', version='1.0.0', srsName='urn:ogc:def:crs:EPSG::4326', nsmap=namespace.namespace_dict)
+        data.set('{%s}schemaLocation' % (namespace.get_namespace('xsi')), SOS_GETOBS_SCHEMA)
+        # offering(s), property(ies) and response format are required
+        child = etree.SubElement(data, 'responseFormat')
+        child.text = unicode(response_format)
+        # offerings is expected as a list; iterate through them to add each
+        for offer in offerings:
+            child = etree.SubElement(data, 'offering')
+            child.text = unicode(offer)
+
+        # observed_properties is expected as a list; iterate through and add
+        for prop in observed_properties:
+            child = etree.SubElement(data, 'observedProperty')
+            child.text = unicode(prop)
+
+        # event_time is optional and can either be a string (for a single time) or a list (for a time period)
+        if event_time is not None:
+            child = etree.SubElement(data, 'eventTime')
+            if isinstance(event_time, str):
+                child = etree.SubElement(child, '{%s}TM_Equals' % (namespace.get_namespace('ogc')))
+                #etree.SubElement(child, '{%s}PropertyName' % (namespace.get_namespace['ogc'])).text = 'om:samplingTime'
+                child = etree.SubElement(child, '{%s}TimeInstant' % (namespace.get_namespace('gml')))
+                etree.SubElement(child, '{%s}timePosition' % (namespace.get_namespace('gml'))).text = unicode(event_time)
+            elif isinstance(event_time, list):
+                child = etree.SubElement(child, '{%s}TM_During' % (namespace.get_namespace('ogc')))
+                # etree.SubElement(child, '{%s}PropertyName' % (namespace.get_namespace['ogc'])).text = 'om:samplingTime'
+                child = etree.SubElement(child, '{%s}TimePeriod' % (namespace.get_namespace('gml')))
+                etree.SubElement(child, '{%s}beginPosition' % (namespace.get_namespace('gml'))).text = unicode(event_time.pop(0))
+                etree.SubElement(child, '{%s}endPosition' % (namespace.get_namespace('gml'))).text = unicode(event_time.pop(0))
+
+        # add optionals as sub children of root
+        for item in optionals:
+            child = etree.SubElement(data, item)
+            child.text = unicode(optionals[item])
+
+        return etree.tostring(data)
 
 class SosObservationOffering(object):
     def __init__(self, element):
