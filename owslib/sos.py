@@ -156,6 +156,7 @@ class SensorObservationService(object):
         if method == 'Post':
             # create xml for post request
             data = self.create_get_obs_xml(responseFormat, offerings, observedProperties, eventTime, kwargs)
+            # return etree.tostring(etree.fromstring(data), pretty_print=True)
         else:
             request = {'service': 'SOS', 'version': self.version, 'request': 'GetObservation'}
 
@@ -229,7 +230,17 @@ class SensorObservationService(object):
 
         if event_time is not None:
             child = etree.SubElement(data, 'eventTime')
-            child.text = unicode(event_time)
+            if isinstance(event_time, str):
+                child = etree.SubElement(child, '{%s}TM_Equals' % (namespace.namespace_dict['ogc']))
+                #etree.SubElement(child, '{%s}PropertyName' % (namespace.namespace_dict['ogc'])).text = 'om:samplingTime'
+                child = etree.SubElement(child, '{%s}TimeInstant' % (namespace.namespace_dict['gml']))
+                etree.SubElement(child, '{%s}timePosition' % (namespace.namespace_dict['gml'])).text = unicode(event_time)
+            elif isinstance(event_time, list):
+                child = etree.SubElement(child, '{%s}TM_During' % (namespace.namespace_dict['ogc']))
+                # etree.SubElement(child, '{%s}PropertyName' % (namespace.namespace_dict['ogc'])).text = 'om:samplingTime'
+                child = etree.SubElement(child, '{%s}TimePeriod' % (namespace.namespace_dict['gml']))
+                etree.SubElement(child, '{%s}beginPosition' % (namespace.namespace_dict['gml'])).text = unicode(event_time.pop(0))
+                etree.SubElement(child, '{%s}endPosition' % (namespace.namespace_dict['gml'])).text = unicode(event_time.pop(0))
 
         # add optionals as sub children of root
         for item in optionals:
