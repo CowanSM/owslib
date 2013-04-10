@@ -9,6 +9,9 @@
 
 import re
 import sys
+from dateutil import parser
+from datetime import datetime
+import pytz
 from owslib.etree import etree
 import pytz
 from dateutil import parser
@@ -18,9 +21,8 @@ from urllib2 import urlopen, HTTPError, Request
 from urllib2 import HTTPPasswordMgrWithDefaultRealm
 from urllib2 import HTTPBasicAuthHandler
 from StringIO import StringIO
-from owslib.namespaces import OWSLibNamespaces
-
-ns = OWSLibNamespaces()
+import cgi
+from urllib import urlencode
 
 """
 Utility functions and classes
@@ -65,11 +67,20 @@ def openURL(url_base, data, method='Get', cookies=None, username=None, password=
         opener = urllib2.build_opener(auth_handler)
         openit = opener.open
     else:
+        # NOTE: optionally set debuglevel>0 to debug HTTP connection
+        #opener = urllib2.build_opener(urllib2.HTTPHandler(debuglevel=0))
+        #openit = opener.open
         openit = urlopen
    
     try:
         if method == 'Post':
             req = Request(url_base, data)
+            # set appropriate header if posting XML
+            try:
+                xml = etree.fromstring(data)
+                req.add_header('Content-Type', "text/xml")
+            except:
+                pass
         else:
             req=Request(url_base + data)
         if cookies is not None:
@@ -167,13 +178,12 @@ def testXMLValue(val, attrib=False):
     """
 
     if val is not None:
-        if attrib == True:
-            return val
+        if attrib:
+            return val.strip()
+        elif val.text:  
+            return val.text.strip()
         else:
-            try:
-                return val.text.strip()
-            except:
-                return val.text
+            return None	
     else:
         return None
 
@@ -196,7 +206,7 @@ def http_post(url=None, request=None, lang='en-US', timeout=10):
     if url is not None:
         u = urlparse.urlsplit(url)
         r = urllib2.Request(url, request)
-        r.add_header('User-Agent', 'OWSLib (https://sourceforge.net/apps/trac/owslib)')
+        r.add_header('User-Agent', 'OWSLib (https://geopython.github.io/OWSLib)')
         r.add_header('Content-type', 'text/xml')
         r.add_header('Content-length', '%d' % len(request))
         r.add_header('Accept', 'text/xml')
@@ -264,27 +274,69 @@ def xmltag_split(tag):
     except:
         return tag
 
+def getNamespace(element):
+    ''' Utility method to extract the namespace from an XML element tag encoded as {namespace}localname. '''
+    if element.tag[0]=='{':
+        return element.tag[1:].split("}")[0]
+    else:
+        return ""
+
+def build_get_url(base_url, params):
+    ''' Utility function to build a full HTTP GET URL from the service base URL and a dictionary of HTTP parameters. '''
+    
+    qs = []
+    if base_url.find('?') != -1:
+        qs = cgi.parse_qsl(base_url.split('?')[1])
+
+    pars = [x[0] for x in qs]
+
+    for key,value in params.iteritems():
+        if key not in pars:
+            qs.append( (key,value) )
+
+    urlqs = urlencode(tuple(qs))
+    return base_url.split('?')[0] + '?' + urlqs
+
+def dump(obj, prefix=''):
+    '''Utility function to print to standard output a generic object with all its attributes.'''
+    
+    print "%s %s : %s" % (prefix, obj.__class__, obj.__dict__)
+    
+def getTypedValue(type, value):
+    ''' Utility function to cast a string value to the appropriate XSD type. '''
+    
+    if type=='boolean':
+       return bool(value)
+    elif type=='integer':
+       return int(value)
+    elif type=='float':
+        return float(value)
+    elif type=='string':
+        return str(value)
+    else:
+        return value # no type casting
+
 
 def extract_time(element):
-    ''' return a datetime object based on a gml text string 
+    ''' return a datetime object based on a gml text string
 
-        ex:
-        <gml:beginPosition>2006-07-27T21:10:00Z</gml:beginPosition>
-        <gml:endPosition indeterminatePosition="now"/>
+ex:
+<gml:beginPosition>2006-07-27T21:10:00Z</gml:beginPosition>
+<gml:endPosition indeterminatePosition="now"/>
 
-        If there happens to be a strange element with both attributes and text,
-        use the text.
-        ex:  <gml:beginPosition indeterminatePosition="now">2006-07-27T21:10:00Z</gml:beginPosition>
-        Would be 2006-07-27T21:10:00Z, not 'now'
+If there happens to be a strange element with both attributes and text,
+use the text.
+ex: <gml:beginPosition indeterminatePosition="now">2006-07-27T21:10:00Z</gml:beginPosition>
+Would be 2006-07-27T21:10:00Z, not 'now'
 
-    '''
+'''
     if element is None:
         return None
 
-    try:            
+    try:
         dt = parser.parse(element.text)
     except Exception:
-        att = testXMLAttribute(element, 'indeterminatePosition')
+        att = testXMLValue(element.attrib.get('indeterminatePosition'), True)
         if att and att == 'now':
             dt = datetime.utcnow()
             dt.replace(tzinfo=pytz.utc)
@@ -292,11 +344,17 @@ def extract_time(element):
             dt = None
     return dt
 
+# http://stackoverflow.com/questions/6256183/combine-two-dictionaries-of-dictionaries-python
+dict_union = lambda d1,d2: dict((x,(dict_union(d1.get(x,{}),d2[x]) if
+  isinstance(d2.get(x),dict) else d2.get(x,d1.get(x)))) for x in
+  set(d1.keys()+d2.keys()))
+
+
 def extract_xml_list(elements):
     """
-        Some people don't have seperate tags for their keywords and seperate them with
-        a newline.  This will extract out all of the  keywords correctly.
-    """
+Some people don't have seperate tags for their keywords and seperate them with
+a newline. This will extract out all of the keywords correctly.
+"""
     keywords = [re.split(r'[\n\r]+',f.text) for f in elements if f.text]
     flattened = [item.strip() for sublist in keywords for item in sublist]
     remove_blank = filter(None, flattened)

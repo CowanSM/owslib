@@ -34,7 +34,11 @@ hdlr.setFormatter(formatter)
 log.addHandler(hdlr)
 log.setLevel(logging.DEBUG)
 
-ns = OWSLibNamespaces()
+WFS_NAMESPACE = 'http://www.opengis.net/wfs/2.0'
+OWS_NAMESPACE = 'http://www.opengis.net/ows/1.1'
+OGC_NAMESPACE = 'http://www.opengis.net/ogc'
+GML_NAMESPACE = 'http://www.opengis.net/gml'
+FES_NAMESPACE = 'http://www.opengis.net/fes/2.0'
 
 _ows_version='1.0.0'
 
@@ -99,7 +103,7 @@ class WebFeatureService_2_0_0(object):
         featuretypelistelem=self._capabilities.find(nspath('FeatureTypeList', ns.get_namespace('wfs')))
         featuretypeelems=featuretypelistelem.findall(nspath('FeatureType', ns.get_namespace('wfs')))
         for f in featuretypeelems:  
-            kwds=f.findall(nspath('Keywords/Keyword'))
+            kwds=f.findall(nspath('Keywords/Keyword',ns=OWS_NAMESPACE))
             if kwds is not None:
                 for kwd in kwds[:]:
                     if kwd.text not in self.identification.keywords:
@@ -145,7 +149,7 @@ class WebFeatureService_2_0_0(object):
     
     def getfeature(self, typename=None, filter=None, bbox=None, featureid=None,
                    featureversion=None, propertyname=None, maxfeatures=None,storedQueryID=None, storedQueryParams={},
-                   method=nspath('Get')):
+                   method='Get'):
         """Request and return feature data as a file-like object.
         #TODO: NOTE: have changed property name from ['*'] to None - check the use of this in WFS 2.0
         Parameters
@@ -173,8 +177,11 @@ class WebFeatureService_2_0_0(object):
         2) typename and filter (==query) (more expressive)
         3) featureid (direct access to known features)
         """
-        #log.debug(self.get_operation_by_name('GetFeature'))
-        base_url = self.get_operation_by_name('GetFeature').methods[method]['url']
+        #log.debug(self.getOperationByName('GetFeature'))
+        base_url = self.getOperationByName('GetFeature').methods[method]['url']
+
+        if method.upper() == "GET":
+            base_url = base_url if base_url.endswith("?") else base_url+"?"
         request = {'service': 'WFS', 'version': self.version, 'request': 'GetFeature'}
         
         # check featureid
@@ -186,6 +193,7 @@ class WebFeatureService_2_0_0(object):
         elif filter:
             request['query'] = str(filter)
         if typename:
+            typename = [typename] if type(typename) == type("") else typename
             request['typename'] = ','.join(typename)
         if propertyname: 
             request['propertyname'] = ','.join(propertyname)
@@ -198,7 +206,6 @@ class WebFeatureService_2_0_0(object):
             for param in storedQueryParams:
                 request[param]=storedQueryParams[param]
                 
-        
         data = urlencode(request)
 
         if method == 'Post':
@@ -345,21 +352,27 @@ class ContentMetadata:
         self.keywords = [f.text for f in elem.findall(nspath('Keywords',ns.get_namespace('wfs')))]
 
         # bboxes
-        self.boundingBox = None
-        b = elem.find(nspath('BoundingBox',ns.get_namespace('wfs')))
-        if b is not None:
-            self.boundingBox = (float(b.attrib['minx']),float(b.attrib['miny']),
-                    float(b.attrib['maxx']), float(b.attrib['maxy']),
-                    b.attrib['SRS'])
         self.boundingBoxWGS84 = None
-        b = elem.find(nspath('LatLongBoundingBox',ns.get_namespace('wfs')))
+        b = elem.find(nspath('WGS84BoundingBox',ns=OWS_NAMESPACE))
         if b is not None:
-            self.boundingBoxWGS84 = (
-                    float(b.attrib['minx']),float(b.attrib['miny']),
-                    float(b.attrib['maxx']), float(b.attrib['maxy']),
-                    )
+            lc = b.find(nspath("LowerCorner",ns=OWS_NAMESPACE))
+            uc = b.find(nspath("UpperCorner",ns=OWS_NAMESPACE))
+            ll = [float(s) for s in lc.text.split()]
+            ur = [float(s) for s in uc.text.split()]
+            self.boundingBoxWGS84 = (ll[0],ll[1],ur[0],ur[1])
+
+        # there is no such think as bounding box
+        # make copy of the WGS84BoundingBox
+        self.boundingBox = (self.boundingBoxWGS84[0],
+                            self.boundingBoxWGS84[1],
+                            self.boundingBoxWGS84[2],
+                            self.boundingBoxWGS84[3],
+                            Crs("epsg:4326"))
         # crs options
-        self.crsOptions = [Crs(srs.text) for srs in elem.findall(nspath('SRS'))]
+        self.crsOptions = [Crs(srs.text) for srs in elem.findall(nspath('OtherCRS',ns=WFS_NAMESPACE))]
+        defaultCrs =  elem.findall(nspath('DefaultCRS',ns=WFS_NAMESPACE))
+        if len(defaultCrs) > 0:
+            self.crsOptions.insert(-1,Crs(defaultCrs[0].text))
 
         # verbs
         self.verbOptions = [op.tag for op \

@@ -1,7 +1,23 @@
-from setuptools import setup, find_packages, Command
-import os
+from setuptools import setup, find_packages
+import owslib
+from setuptools.command.test import test as TestCommand
+import sys
 
-readme = open('README.txt', 'rb').read()
+
+class PyTest(TestCommand):
+    def finalize_options(self):
+        TestCommand.finalize_options(self)
+        self.test_args = []
+        self.test_suite = True
+    def run_tests(self):
+        #import here, cause outside the eggs aren't loaded
+        import pytest
+        errno = pytest.main(self.test_args)
+        sys.exit(errno)
+
+
+
+readme = open('README.txt', 'r').read()
 
 class PyTest(Command):
     user_options = []
@@ -15,20 +31,23 @@ class PyTest(Command):
         raise SystemExit(errno)
 
 setup(name          = 'OWSLib',
-      version       = '0.4.0',
+      version       = owslib.__version__,
       description   = 'OGC Web Service utility library',
       long_description = readme,
       license       = 'BSD',
-      keywords      = 'gis ogc iso 19115 fgdc dif ows wfs wms sos csw capabilities metadata',
+      keywords      = 'gis ogc iso 19115 fgdc dif ows wfs wms sos csw wps wcs capabilities metadata wmts',
       author        = 'Sean Gillies',
-      author_email  = 'sgillies@frii.com',
-      maintainer        = 'Sean Gillies',
-      maintainer_email  = 'sgillies@frii.com',
-      url           = 'https://sourceforge.net/apps/trac/owslib',
+      author_email  = 'sean.gillies@gmail.com',
+      maintainer        = 'Tom Kralidis',
+      maintainer_email  = 'tomkralidis@hotmail.com',
+      url           = 'https://geopython.github.io/OWSLib',
+      install_requires = ['python-dateutil==2.1', 'pytz==2012j'],
       packages      = find_packages(),
-      cmdclass = {'test': PyTest},
+    #test_suite    = 'tests.test_suite',
+    #XXX rewwrite tests so they can be called simply with
+    # python setup.py test
       classifiers   = [
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: BSD License',

@@ -25,16 +25,26 @@ from owslib.namespaces import OWSLibNamespaces
 outputformat = 'application/xml'
 schema = 'http://schemas.opengis.net/csw/2.0.2/CSW-discovery.xsd'
 
-ns = OWSLibNamespaces()
+namespaces = {
+    'atom': 'http://www.w3.org/2005/Atom',
+    'csw': 'http://www.opengis.net/cat/csw/2.0.2',
+    'dc' : 'http://purl.org/dc/elements/1.1/',
+    'dct': 'http://purl.org/dc/terms/',
+    'dif': 'http://gcmd.gsfc.nasa.gov/Aboutus/xml/dif/',
+    'fgdc': 'http://www.opengis.net/cat/csw/csdgm',
+    'gco': 'http://www.isotc211.org/2005/gco',
+    'gmd': 'http://www.isotc211.org/2005/gmd',
+    'gml': 'http://www.opengis.net/gml',
+    'ogc': 'http://www.opengis.net/ogc',
+    'ows': 'http://www.opengis.net/ows',
+    'rim': 'urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0',
+    'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+    'xs' : 'http://www.w3.org/2001/XMLSchema',
+    'xs2': 'http://www.w3.org/XML/Schema',
+    'xsi': 'http://www.w3.org/2001/XMLSchema-instance'
+}
 
-schema_location = '%s %s' % (ns.get_namespace('csw'), schema)
-
-_ows_version = '1.0.0'
-
-def nsp_ows(item):
-    return nspath_eval(item,_ows_version)
-def nsp(item):
-    return nspath_eval(item)
+schema_location = '%s %s' % (namespaces['csw'], schema)
 
 class CatalogueServiceWeb:
     """ csw request class """
@@ -158,7 +168,7 @@ class CatalogueServiceWeb:
             for f in self._exml.findall(nsp('csw:DomainValues/csw:ListOfValues/csw:Value')):
                 self.results['values'].append(testXMLValue(f))
 
-    def getrecords(self, qtype=None, keywords=[], typenames='csw:Record', propertyname='csw:AnyText', bbox=None, esn='summary', sortby=None, outputschema=None, format=outputformat, startposition=0, maxrecords=10, cql=None, xml=None):
+    def getrecords(self, qtype=None, keywords=[], typenames='csw:Record', propertyname='csw:AnyText', bbox=None, esn='summary', sortby=None, outputschema=namespaces['csw'], format=outputformat, startposition=0, maxrecords=10, cql=None, xml=None, resulttype='results'):
         """
 
         Construct and process a  GetRecords request
@@ -179,6 +189,7 @@ class CatalogueServiceWeb:
         - maxrecords: the maximum number of records to return. No records are returned if 0 (default is 10)
         - cql: common query language text.  Note this overrides bbox, qtype, keywords
         - xml: raw XML request.  Note this overrides all other options
+        - resulttype: the resultType 'hits', 'results', 'validate' (default is 'results')
 
         """
 
@@ -202,7 +213,7 @@ class CatalogueServiceWeb:
             node0.set('outputSchema', outputschema)
             node0.set('outputFormat', format)
             node0.set('version', self.version)
-            node0.set('resultType', 'results')
+            node0.set('resultType', resulttype)
             node0.set('service', self.service)
             if startposition > 0:
                 node0.set('startPosition', str(startposition))
@@ -509,6 +520,15 @@ class CswRecord(object):
         else:  # part of a larger document
             self.xml = etree.tostring(record)
 
+        # check to see if Dublin Core record comes from
+        # rdf:RDF/rdf:Description container
+        # (child content model is identical)
+        self.rdf = False
+        rdf = record.find(util.nspath_eval('rdf:Description', namespaces))
+        if rdf is not None:
+            self.rdf = True
+            record = rdf
+
         # some CSWs return records with multiple identifiers based on 
         # different schemes.  Use the first dc:identifier value to set
         # self.identifier, and set self.identifiers as a list of dicts
@@ -619,3 +639,9 @@ class CswRecord(object):
             self.bbox = ows.BoundingBox(val,ns.get_versioned_namespace('ows', _ows_version))
         else:
             self.bbox = None
+
+        val = record.find(util.nspath_eval('ows:WGS84BoundingBox', namespaces))
+        if val is not None:
+            self.bbox_wgs84 = ows.WGS84BoundingBox(val, namespaces['ows'])
+        else:
+            self.bbox_wgs84 = None

@@ -1,5 +1,5 @@
 *.pyc
-OWSLib.egg-info/*
-tests/scratch/*
-.coverage
-!.gitkeep
+build/
+dist
+docs/build
+OWSLib.egg-info

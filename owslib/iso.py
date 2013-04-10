@@ -33,7 +33,7 @@ class MD_Metadata(object):
         val = md.find(util.nspath_eval('gmd:language/gco:CharacterString'))
         self.language = util.testXMLValue(val)
         
-        val = md.find(util.nspath_eval('gmd:datasetURI/gco:CharacterString'))
+        val = md.find(util.nspath_eval('gmd:dataSetURI/gco:CharacterString', namespaces))
         self.dataseturi = util.testXMLValue(val)
 
         val = md.find(util.nspath_eval('gmd:language/gmd:LanguageCode'))
@@ -70,8 +70,16 @@ class MD_Metadata(object):
         else:
             self.referencesystem = None
 
-        val = md.find(util.nspath_eval('gmd:identificationInfo/gmd:MD_DataIdentification'))
-        val2 = md.find(util.nspath_eval('gmd:identificationInfo/srv:SV_ServiceIdentification'))
+        # TODO: merge .identificationinfo into .identification
+        #warnings.warn(
+        #    'the .identification and .serviceidentification properties will merge into '
+        #    '.identification being a list of properties.  This is currently implemented '
+        #    'in .identificationinfo.  '
+        #    'Please see https://github.com/geopython/OWSLib/issues/38 for more information',
+        #    FutureWarning)
+
+        val = md.find(util.nspath_eval('gmd:identificationInfo/gmd:MD_DataIdentification', namespaces))
+        val2 = md.find(util.nspath_eval('gmd:identificationInfo/srv:SV_ServiceIdentification', namespaces))
 
         if val is not None:
             self.identification = MD_DataIdentification(val, 'dataset')
@@ -83,7 +91,19 @@ class MD_Metadata(object):
             self.identification = None
             self.serviceidentification = None
 
-        val = md.find(util.nspath_eval('gmd:distributionInfo/gmd:MD_Distribution'))
+        self.identificationinfo = []
+        for idinfo in md.findall(util.nspath_eval('gmd:identificationInfo', namespaces)):
+            val = list(idinfo)[0]
+            tagval = util.xmltag_split(val.tag)
+            if tagval == 'MD_DataIdentification': 
+                self.identificationinfo.append(MD_DataIdentification(val, 'dataset'))
+            elif tagval == 'MD_ServiceIdentification': 
+                self.identificationinfo.append(MD_DataIdentification(val, 'service'))
+            elif tagval == 'SV_ServiceIdentification': 
+                self.identificationinfo.append(SV_ServiceIdentification(val))
+
+        val = md.find(util.nspath_eval('gmd:distributionInfo/gmd:MD_Distribution', namespaces))
+
         if val is not None:
             self.distribution = MD_Distribution(val)
         else:
@@ -249,8 +269,8 @@ class MD_DataIdentification(object):
         val = md.find(util.nspath_eval('gmd:abstract/gco:CharacterString'))
         self.abstract = util.testXMLValue(val)
 
-        val = md.find(util.nspath_eval('gmd:purpose/gco:CharacterString'))
-        self.purpose = util.testXMLValue(val, True)
+        val = md.find(util.nspath_eval('gmd:purpose/gco:CharacterString', namespaces))
+        self.purpose = util.testXMLValue(val)
 
         self.status = _test_code_list_value(md.find(util.nspath_eval('gmd:status/gmd:MD_ProgressCode')))
 
@@ -296,26 +316,42 @@ class MD_DataIdentification(object):
         val = md.find(util.nspath_eval('gmd:supplementalInformation/gco:CharacterString'))
         self.supplementalinformation = util.testXMLValue(val)
         
-        # there may be multiple geographicElement, create an extent
-        # from the one containing an EX_GeographicBoundingBox
+        # There may be multiple geographicElement, create an extent
+        # from the one containing either an EX_GeographicBoundingBox or EX_BoundingPolygon.
+        # The schema also specifies an EX_GeographicDescription. This is not implemented yet.
         val = None
-        for e in md.findall(util.nspath_eval('gmd:extent/gmd:EX_Extent/gmd:geographicElement')):
-            if e.find(util.nspath_eval('gmd:EX_GeographicBoundingBox')) is not None:
-                val = e
-                break
+        extent = md.find(util.nspath_eval('gmd:extent', namespaces))
+        if extent is None:
+            extent = md.find(util.nspath_eval('srv:extent', namespaces))
+        
+        if extent is not None:
+            for e in extent.findall(util.nspath_eval('gmd:EX_Extent/gmd:geographicElement', namespaces)):
+                if e.find(util.nspath_eval('gmd:EX_GeographicBoundingBox', namespaces)) is not None or e.find(util.nspath_eval('gmd:EX_BoundingPolygon', namespaces)) is not None:
+                    val = e
+                    break
+            self.extent = EX_Extent(val)
+            self.bbox = self.extent.boundingBox  # for backwards compatibility
 
+            val = extent.find(util.nspath_eval('gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent/gml:TimePeriod/gml:beginPosition', namespaces))
+            self.temporalextent_start = util.testXMLValue(val)
+
+            self.temporalextent_end = []
+            val = extent.find(util.nspath_eval('gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent/gml:TimePeriod/gml:endPosition', namespaces))
+            self.temporalextent_end = util.testXMLValue(val)
+
+class MD_Distributor(object):        
+    """ process MD_Distributor """
+    def __init__(self, md):
+        self.contact = None
+        val = md.find(util.nspath_eval('gmd:MD_Distributor/gmd:distributorContact/gmd:CI_ResponsibleParty', namespaces))
         if val is not None:
-            self.bbox = EX_Extent(val)
-        else:
-            self.bbox = None
-        
-        val = md.find(util.nspath_eval('gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent/gml:TimePeriod/gml:beginPosition'))
-        self.temporalextent_start = util.testXMLValue(val)
-        
-        self.temporalextent_end = []
-        val = md.find(util.nspath_eval('gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent/gml:TimePeriod/gml:endPosition'))
-        self.temporalextent_end = util.testXMLValue(val)
-        
+            self.contact = CI_ResponsibleParty(val)
+
+        self.online = []
+
+        for ol in md.findall(util.nspath_eval('gmd:MD_Distributor/gmd:distributorTransferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource', namespaces)):
+            self.online.append(CI_OnlineResource(ol))
+
 class MD_Distribution(object):
     """ process MD_Distribution """
     def __init__(self, md):
@@ -325,10 +361,15 @@ class MD_Distribution(object):
         val = md.find(util.nspath_eval('gmd:distributionFormat/gmd:MD_Format/gmd:version/gco:CharacterString'))
         self.version = util.testXMLValue(val)
 
+        self.distributor = []
+        for dist in md.findall(util.nspath_eval('gmd:distributor', namespaces)):
+            self.distributor.append(MD_Distributor(dist))
+
         self.online = []
 
         for ol in md.findall(util.nspath_eval('gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource')):
             self.online.append(CI_OnlineResource(ol))
+
         
 class DQ_DataQuality(object):
     ''' process DQ_DataQuality'''
@@ -373,7 +414,8 @@ class DQ_DataQuality(object):
 class SV_ServiceIdentification(object):
     """ process SV_ServiceIdentification """
     def __init__(self, md):
-        val = md.find(util.nspath_eval('srv:serviceType/gco:LocalName'))
+        self.identtype = 'service'
+        val = md.find(util.nspath_eval('srv:serviceType/gco:LocalName', namespaces))
         self.type = util.testXMLValue(val)
       
         val = md.find(util.nspath_eval('srv:serviceTypeVersion/gco:CharacterString'))
@@ -435,20 +477,67 @@ class CI_OnlineResource(object):
 
         self.function = _test_code_list_value(md.find(util.nspath_eval('gmd:function/gmd:CI_OnLineFunctionCode')))
 
+
+class EX_GeographicBoundingBox(object):
+    def __init__(self, md):
+        val = md.find(util.nspath_eval('gmd:westBoundLongitude/gco:Decimal', namespaces))
+        self.minx = util.testXMLValue(val)
+        val = md.find(util.nspath_eval('gmd:eastBoundLongitude/gco:Decimal', namespaces))
+        self.maxx = util.testXMLValue(val)
+        val = md.find(util.nspath_eval('gmd:southBoundLatitude/gco:Decimal', namespaces))
+        self.miny = util.testXMLValue(val)
+        val = md.find(util.nspath_eval('gmd:northBoundLatitude/gco:Decimal', namespaces))
+        self.maxy = util.testXMLValue(val)
+    
+class EX_Polygon(object):
+    def __init__(self, md):
+        linear_ring = md.find(util.nspath_eval('gml32:Polygon/gml32:exterior/gml32:LinearRing', namespaces))
+        if linear_ring is not None:
+            self.exterior_ring = self._coordinates_for_ring(linear_ring)
+                    
+        interior_ring_elements = md.findall(util.nspath_eval('gml32:Polygon/gml32:interior', namespaces))
+        self.interior_rings = []
+        for iring_element in interior_ring_elements:
+            linear_ring = iring_element.find(util.nspath_eval('gml32:LinearRing', namespaces))
+            self.interior_rings.append(self._coordinates_for_ring(linear_ring))
+            
+    def _coordinates_for_ring(self, linear_ring):
+        coordinates = []
+        positions = linear_ring.findall(util.nspath_eval('gml32:pos', namespaces))
+        for pos in positions:
+            tokens = pos.text.split()
+            coords = tuple([float(t) for t in tokens])
+            coordinates.append(coords)
+        return coordinates
+        
+class EX_GeographicBoundingPolygon(object):
+    def __init__(self, md):
+        val = md.find(util.nspath_eval('gmd:extentTypeCode', namespaces))
+        self.is_extent = util.testXMLValue(val)
+        
+        md_polygons = md.findall(util.nspath_eval('gmd:polygon', namespaces))
+        
+        self.polygons = []
+        for val in md_polygons:
+            self.polygons.append(EX_Polygon(val))
+            
 class EX_Extent(object):
     """ process EX_Extent """
     def __init__(self, md):
-        val = md.find(util.nspath_eval('gmd:EX_GeographicBoundingBox/gmd:westBoundLongitude/gco:Decimal'))
-        self.minx = util.testXMLValue(val)
-        val = md.find(util.nspath_eval('gmd:EX_GeographicBoundingBox/gmd:eastBoundLongitude/gco:Decimal'))
-        self.maxx = util.testXMLValue(val)
-        val = md.find(util.nspath_eval('gmd:EX_GeographicBoundingBox/gmd:southBoundLatitude/gco:Decimal'))
-        self.miny = util.testXMLValue(val)
-        val = md.find(util.nspath_eval('gmd:EX_GeographicBoundingBox/gmd:northBoundLatitude/gco:Decimal'))
-        self.maxy = util.testXMLValue(val)
+        self.boundingBox = None
+        self.boundingPolygon = None
 
-        val = md.find(util.nspath_eval('gmd:EX_GeographicDescription/gmd:geographicIdentifier/gmd:MD_Identifier/gmd:code/gco:CharacterString'))
-        self.description_code = util.testXMLValue(val)
+        if md is not None:
+            bboxElement = md.find(util.nspath_eval('gmd:EX_GeographicBoundingBox', namespaces))
+            if bboxElement is not None:
+                self.boundingBox = EX_GeographicBoundingBox(bboxElement)
+        
+            polygonElement = md.find(util.nspath_eval('gmd:EX_BoundingPolygon', namespaces))
+            if polygonElement is not None:
+                self.boundingPolygon = EX_GeographicBoundingPolygon(polygonElement)
+ 
+            val = md.find(util.nspath_eval('gmd:EX_GeographicDescription/gmd:geographicIdentifier/gmd:MD_Identifier/gmd:code/gco:CharacterString', namespaces))
+            self.description_code = util.testXMLValue(val)
 
 class MD_ReferenceSystem(object):
     """ process MD_ReferenceSystem """
@@ -515,3 +604,4 @@ class CodelistCatalogue(object):
             return ids
         else:
             return None
+

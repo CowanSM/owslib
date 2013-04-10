@@ -31,18 +31,35 @@ class ServiceIdentification(object):
     """Initialize an OWS Common ServiceIdentification construct"""
     def __init__(self, infoset, ows_version='1.0.0'): 
         self._root = infoset
-        global _ows_version
-        _ows_version = ows_version
 
-        self.title    = testXMLValue(self._root.find(ns_ows('ows:Title')))
-        self.abstract = testXMLValue(self._root.find(ns_ows('ows:Abstract')))
-        self.keywords = extract_xml_list(self._root.findall(ns_ows('ows:Keywords/ows:Keyword')))
-        self.accessconstraints = testXMLValue(self._root.find(ns_ows('ows:AccessConstraints')))
-        self.fees = testXMLValue(self._root.find(ns_ows('ows:Fees')))
-        self.type = util.testXMLValue(self._root.find(ns_ows('ows:ServiceType')))
-        self.service = self.type # LOOK: duplicate type as service here
-        self.version = util.testXMLValue(self._root.find(ns_ows('ows:ServiceTypeVersion')))
-        self.profile = util.testXMLValue(self._root.find(ns_ows('ows:Profile')))
+        val = self._root.find(util.nspath('Title', namespace))
+        self.title = util.testXMLValue(val)
+
+        val = self._root.find(util.nspath('Abstract', namespace))
+        self.abstract = util.testXMLValue(val)
+
+        self.keywords = []
+        for f in self._root.findall(util.nspath('Keywords/Keyword', namespace)):
+            if f.text is not None:
+                self.keywords.append(f.text)
+    
+
+        val = self._root.find(util.nspath('AccessConstraints', namespace))
+        self.accessconstraints = util.testXMLValue(val)
+
+        val = self._root.find(util.nspath('Fees', namespace))
+        self.fees = util.testXMLValue(val)
+
+        val = self._root.find(util.nspath('ServiceType', namespace))
+        self.type = util.testXMLValue(val)
+        self.service=self.type #alternative? keep both?discuss
+
+        val = self._root.find(util.nspath('ServiceTypeVersion', namespace))
+        self.version = util.testXMLValue(val)
+
+        self.profiles = []
+        for p in self._root.findall(util.nspath('Profile', namespace)):
+            self.profiles.append(util.testXMLValue(val))
 
 class ServiceProvider(object):
     """Initialize an OWS Common ServiceProvider construct"""
@@ -133,6 +150,12 @@ class OperationsMetadata(object):
             co.constraints = dict_union(constraints, co.constraints)
             self.operations[co.name] = co
 
+        for parameter in elem.findall(util.nspath('Parameter', namespace)):
+            if namespace == OWS_NAMESPACE_1_1_0:
+                parameters.append((parameter.attrib['name'], {'values': [i.text for i in parameter.findall(util.nspath('AllowedValues/Value', namespace))]}))
+            else:
+                parameters.append((parameter.attrib['name'], {'values': [i.text for i in parameter.findall(util.nspath('Value', namespace))]}))
+        self.parameters = dict(parameters)
 
 
 class BoundingBox(object):
@@ -178,6 +201,15 @@ class BoundingBox(object):
                     self.maxx, self.maxy = xy[1], xy[0]
                 else:
                     self.maxx, self.maxy = xy[0], xy[1]
+
+class WGS84BoundingBox(BoundingBox):
+    """WGS84 bbox, axis order xy"""
+    def __init__(self, elem, namespace=DEFAULT_OWS_NAMESPACE):
+        BoundingBox.__init__(self, elem, namespace)
+        self.dimensions = 2
+        self.crs = crs.Crs('urn:ogc:def:crs:OGC:2:84')
+
+
 
 class ExceptionReport(Exception):
     """OWS ExceptionReport"""
